@@ -1,0 +1,282 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      body {
+        font-size: .9em;
+      }
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: .9em;
+        font-size: .95em;
+      }
+      code {
+        font-family: "Courier New"
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Functions</h1>
+    <ol>
+      <li>Create direcotry</li>
+      <li>Upload file</li>
+      <li>Download file/directory</li>
+      <li>List directory</li>
+      <li>Get file/directory information</li>
+      <li>Move/rename file/direcotry</li>
+      <li>Delete file/directory</li>
+    </ol>
+    <h1>API</h1>
+    <table>
+      <tr>
+        <th>Function</th>
+        <th>Request</th>
+        <th>Form data</th>
+        <th>Success</th>
+        <th>Error</th>
+      </tr>
+      <tr>
+        <td>Download file</td>
+        <td>
+          <code>
+            GET {{origin}}img/girl/blue.jpg<br>
+          </code>
+        </td>
+        <td></td>
+        <td><code>&lt;binary-content&gt;</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Download directory as ZIP file</td>
+        <td>
+          <code>
+            GET {{origin}}img?download=zip<br>
+          </code>
+        </td>
+        <td></td>
+        <td><code>&lt;binary-content&gt;</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt; / &lt;Bad request&gt;</code></td>
+      </tr>
+      <tr>
+        <td>List directory</td>
+        <td>
+          <code>
+            GET {{origin}}img<br>
+          </code>
+        </td>
+        <td></td>
+        <td>
+          <pre><code>{
+  "errno": 0,
+  "dirs": ["girl", "screenshot"],
+  "files": ["avatar.jpg"]
+}</code></pre></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Get file/directory information</td>
+        <td>
+          <code>
+            GET {{origin}}img/girl?info=all<br>
+            GET {{origin}}img/girl/blue.jpg?info=all
+          </code>
+        </td>
+        <td></td>
+        <td>
+          <pre><code>{
+  "errno": 0,
+  "size": 1365,
+  "ctime": "2018-04-22 16:41:04"
+}</code></pre></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Create directory</td>
+        <td>
+          <code>
+            PUT {{origin}}img/girl?isdir=true<br>
+          </code>
+        </td>
+        <td><code>[&lt;access&gt;]</code></td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Upload file as a whole</td>
+        <td>
+          <code>
+            PUT {{origin}}img/girl/blue.jpg<br>
+          </code>
+        </td>
+        <td>
+          <code>
+            data: &lt;binary-data&gt;<br>
+            [&lt;access&gt;]
+          </code>
+        </td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Upload file as parts</td>
+        <td>
+          <code>
+            PUT {{origin}}video/SIRO-1690.wmv<br>
+          </code>
+        </td>
+        <td>
+          <code>
+            pos: 1048576<br>
+            part-size: 13768<br>
+            data: &lt;binary-data&gt;
+            [&lt;access&gt;]
+          </code>
+        </td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Change file/directory access</td>
+        <td>
+          <code>
+            PUT {{origin}}img/girl<br>
+            PUT {{origin}}img/girl/blue.jpg<br>
+          </code>
+        </td>
+        <td>
+          <code>
+            &lt;access&gt;
+          </code>
+        </td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Move/rename file/directory</td>
+        <td>
+          <code>
+            POST {{origin}}img/girl/blue.jpg?op=mv<br>
+          </code>
+        </td>
+        <td>
+          <code>
+            path: /blog-img/blue-girl.jpg
+          </code>
+        </td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Copy file/directory</td>
+        <td>
+          <code>
+            POST {{origin}}img/girl/blue.jpg?op=cp<br>
+          </code>
+        </td>
+        <td>
+          <code>
+            path: /blog-img/blue-girl.jpg
+          </code>
+        </td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt; / &lt;Bad request&gt; / &lt;Conflict&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Delete file/directory</td>
+        <td>
+          <code>
+            DELETE {{origin}}img/girl/blue.jpg<br>
+          </code>
+        </td>
+        <td></td>
+        <td><code>{"errno": 0}</code></td>
+        <td><code>&lt;Unauthorized&gt; / &lt;Not Found&gt;</code></td>
+      </tr>
+    </table>
+    
+    <h1>Access</h1>
+    <table>
+      <tr>
+        <th>Form data</th>
+      </tr>
+      <tr>
+        <td>
+          <code>
+            group: admin<br>
+            permission: 664<br>
+          </code>
+        </td>
+      </tr>
+    </table>
+
+    <h1>Errors</h1>
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Content</th>
+        <th>Possible reasons</th>
+      </tr>
+      <tr>
+        <td>Bad request</td>
+        <td>
+          <code>{"errno": 400, "info": "Bad request"}</code>
+        </td>
+        <td>Wrong parameters / form data</td>
+      </tr>
+      <tr>
+        <td>Unauthorized</td>
+        <td>
+          <code>{"errno": 401, "info": "Unauthorized"}</code>
+        </td>
+        <td>No or wrong "Authorization" header</td>
+      </tr>
+      <tr>
+        <td>Not Found</td>
+        <td>
+          <code>{"errno": 404, "info": "Not Found"}</code>
+        </td>
+        <td>Resource does not exists</td>
+      </tr>
+      <tr>
+        <td>Conflict</td>
+        <td>
+          <code>{"errno": 409, "info": "Conflict"}</code>
+        </td>
+        <td>Resource exists and cannot be replaced</td>
+      </tr>
+    </table>
+
+    <h1>Permissions</h1>
+    <table>
+      <tr>
+        <th></th>
+        <th>Owner</th>
+        <th>Group</th>
+        <th>Other</th>
+      </tr>
+      <tr>
+        <td>Upload file - parent writable</td>
+        <td>&#10003;</td>
+        <td>&#10003;</td>
+        <td>&#10003;</td>
+      </tr>
+      <tr>
+        <td>Upload file - parent not writable</td>
+        <td>&#10003;</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Create directory</td>
+        <td>&#10003;</td>
+        <td></td>
+        <td></td>
+      </tr>
+    </table>
+    
+    <h1>Other</h1>
+    <code>GET {{origin}}/img?isdir=true</code>
+  </body>
+</html>

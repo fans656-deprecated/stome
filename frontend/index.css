@@ -1,0 +1,36 @@
+#name {
+  width: 20em;
+  padding: .1em .5em;
+}
+
+ol {
+  list-style-type: none;
+  padding: 0 1em;
+}
+
+ol {
+  font-family: Consolas, Arial;
+  font-size: .85em;
+}
+
+ol li {
+  padding: .1em 0;
+}
+
+ol a {
+  text-decoration: none;
+  color: black;
+}
+
+ol a:hover {
+  color: steelblue;
+}
+
+#explorer {
+  border: 1px solid #aaa;
+  margin: .5em 0;
+}
+
+.progress {
+  padding-left: 2em;
+}

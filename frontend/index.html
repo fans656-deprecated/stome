@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/index.css?static=true">
+    <script src="/jquery.js?static=true"></script>
+    <script src="/md5.min.js?static=true"></script>
+    <script src="/conf.js?static=true"></script>
+    <script src="/index.js?static=true"></script>
+  </head>
+  <body>
+    <div>
+      <input id="name" value="" placeholder="unnamed">
+      <input id="mkdir" type="button" value="Create directory">
+      <input id="upload" type="button" value="Upload file">
+    </div>
+    <div id="explorer">
+      <ol id="file-list">
+      </ol>
+    </div>
+    <div id="upload-monitor">
+      <ol id="upload-list">
+      </ol>
+    </div>
+    <input id="file-input" type="file" multiple style="display: none">
+  </body>
+</html>
