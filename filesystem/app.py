@@ -57,6 +57,12 @@ def get_resource(path):
     r = resource.load(get_owner(), path)
     if 'isdir' in request.args:
         return json.dumps({'isdir': r.isdir})
+    elif 'info' in request.args:
+        return json.dumps({
+            'path': path,
+            'isdir': r.isdir,
+            'md5': r.md5,
+        })
     else:
         if r.isdir:
             return handle_list_directory(path)

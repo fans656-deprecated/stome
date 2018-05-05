@@ -5,7 +5,19 @@
 2018-04-26 20:56:37
 . download large file
 
-) video stream
+2018-04-29 22:44:52
+. video stream
+
+实验HLS(HTTP Live Streaming)成功，可以在线播放视频
+之后就是把API完善下，测试完备
+再支持上七牛云的存储
+然后就可以做网站了
+
+2018-05-01 09:29:39
+发现支持一下rsync也很不错
+fans656.me提供package上传功能，那么整个package的上传用rsync来做，就可以在命令行一下子传上去一个文件夹
+
+
 ) frontend renamed upload
 ) delete file
 ) auth server
