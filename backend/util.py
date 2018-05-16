@@ -28,3 +28,19 @@ def error_response(data=None, status_code=400):
 
 def utc_now_str():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+
+
+def normalized_path(path):
+    parts = []
+    for part in path.split('/'):
+        if not part or part == '.':
+            continue
+        elif part == '..':
+            if parts:
+                parts.pop()
+        else:
+            parts.append(part)
+    path = '/'.join(parts)
+    if not path.startswith('/'):
+        path = '/' + path
+    return path

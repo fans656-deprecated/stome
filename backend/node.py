@@ -42,6 +42,11 @@ import pymongo
 import util
 
 
+def get_node(path):
+    path = util.normalized_path(path)
+    return Node(path)
+
+
 class Node(object):
 
     def __init__(self, path):
