@@ -1,18 +1,39 @@
 import os
 import json
+import functools
+import traceback
 
 from flask import *
 
 import conf
-import util
-import filesystem
+import fsutil
+from user import User
+from node import get_node, get_existed_node
 
 
 app = Flask(__name__, template_folder='.')
 
 
+def handle_exceptions(viewfunc):
+    @functools.wraps(viewfunc)
+    def decorated_viewfunc(*args, **kwargs):
+        r = viewfunc(*args, **kwargs)
+        return json.dumps({
+            'errno': 200,
+            'res': r or '',
+        })
+        #try:
+        #    r = viewfunc(*args, **kwargs)
+        #    return r or ''
+        #except Exception as e:
+        #    traceback.print_exc()
+        #    raise e
+    return decorated_viewfunc
+
+
 @app.route('/')
 @app.route('/<path:path>')
+@handle_exceptions
 def get_path(path=''):
     """
     1. Download file
@@ -39,32 +60,22 @@ def get_path(path=''):
 
         GET /?api=true
     """
-    if requesting_api():
+    if 'api' in request.args:
         return render_template('api.html')
 
-    node = get_node(path)
-    if not node.exist:
-        return NotFound
-
     visitor = get_visitor()
-    if requesting_meta():
-        if node.readable_by(visitor):
-            return ok_response(node.meta)
-        else:
-            return Forbidden
-    elif node.isdir:
-        if node.readable_by(visitor) and node.executable_by(visitor):
-            return ok_response(list_directory(node))
-        else:
-            return Forbidden
-    else:  # is file
-        if node.readable_by(visitor):
-            return make_content_stream(node)
-        else:
-            return Forbidden
+    node = get_existed_node(path)
+
+    if 'meta' in request.args:
+        return node.get_meta(visitor)
+    elif node.is_dir:
+        return node.list(visitor)
+    elif node.is_file:
+        return make_content_stream(node)
 
 
 @app.route('/<path:path>', methods=['PUT'])
+@handle_exceptions
 def put_path(path):
     """
     1. Upload file
@@ -85,31 +96,19 @@ def put_path(path):
         }
     """
     visitor = get_visitor()
-    node = get_node(path)
+    if path.endswith('/'):
+        node = get_dir_node(path)
+    else:
+        node = get_file_node(path)
     if not node.exist:
-        if not node.creatable_by(visitor):
-            return Forbidden
-        if requesting_directory(path):
-            node.type = 'dir'
-        node.create(owner=visitor)
-    meta = get_request_meta()
-    if meta:
-        if not node.own_by(visitor):
-            return Forbidden
-        node.update_meta(meta)
-    if uploading_file():
-        if not node.writable_by(visitor):
-            return Forbidden
-        try:
-            data_meta = get_uploading_meta()
-            data_file = get_uploading_data_file()
-            node.write(meta=data_meta, data=data_file)
-        except Exception:
-            return BadRequest
-    return ok_response()
+        node.create(visitor)
+    node.update_meta(visitor, get_request_meta())
+    if request.files:
+        pass  # TODO handle upload
 
 
 @app.route('/<path:path>', methods=['POST'])
+@handle_exceptions
 def post_path(path):
     """
     1. Rename file/directory
@@ -136,23 +135,15 @@ def post_path(path):
             "to": "/public/girl.jpg"
         }
     """
-    node = get_node(path)
-    if not node.exist:
-        return NotFound
-    operation = get_request_operation()
-    if not operation:
-        return BadRequest
+    src = get_existed_node(path)
+    op = get_request_operation()
     visitor = get_visitor()
-    if operation == 'mv':
-        dst_path = get_request_dst_path()
-        if not dst_path:
-            return BadRequest
-        dst_node = get_node(dst_path, parent=node.parent.path)
-        try:
-            cp(node, dst_node, visitor)
-            return OK()
-        except PermissionDenied as e:
-            return Forbidden()
+    if op == 'mv':
+        dst = get_dst_node(node, request.args.get('to'))
+        src.move(user, dst)
+    elif op == 'cp':
+        if not dst.clone(user, src):
+            raise BadRequest
 
 
 @app.route('/<path:path>', methods=['DELETE'])
@@ -163,7 +154,7 @@ def delete_path(path):
         DELETE /img
         DELETE /img/girl.jpg
     """
-    pass
+    get_existed_node(path).remove(get_visitor(), recursive=True)
 
 
 @app.after_request
@@ -172,20 +163,14 @@ def after_request(r):
     return r
 
 
-def get_node(path, parent='/'):
-    if not path.startswith('/'):
-        path = os.path.join(parent, path)
-    path = normalized_path(path)
-    node = filesystem.get_node_by_path(path)
-    return node
-
-
 def get_visitor():
     try:
         token = request.headers['authorization'].split(' ')[1]
         user = jwt.decode(token, conf.auth_pubkey, algorithm='RS512')
+        if not fsutil.get_home_dir(user).exist:
+            fsutil.create_home_dir_for(user)
     except Exception:
-        user = {'username': ''}
+        user = {'username': 'guest'}
     return User(user)
 
 
@@ -195,88 +180,31 @@ def get_request_meta():
 
 
 def get_request_operation():
-    return request.args.get('op')
+    op = request.args.get('op')
+    if not op:
+        raise BadRequest
 
 
-def get_request_dst_path():
-    return request.args.get('to', '')
-
-
-def normalized_path(path):
-    if not path.startswith('/'):
-        path = '/' + path
-    return path
-
-
-def requesting_api():
-    return 'api' in request.args
-
-
-def requesting_directory(path):
-    return path.endswith('/')
-
-
-def requesting_meta():
-    return 'meta' in request.args
+def get_dst_node(src, to):
+    if not to.startswith('/'):
+        to = src.parent.path + '/' + to
+    return get_node(to)
 
 
 def uploading_file():
     return bool(request.files)
 
 
-def list_directory(directory):
-    subdirs = directory.subdirs
-    files = directory.files
-    return {
-        'dirs': map(make_list_directory_entry, subdirs),
-        'files': map(make_list_directory_entry, files),
-    }
-
-
-def make_list_directory_entry(node):
-    return {
-        'name': node.name,
-        'path': node.path,
-    }
-
-
 def make_content_stream(node):
     return Response(node.iter_data(), mimetype=node.mimetype)
 
 
-def cp(src, dst, visitor):
-    if not dst.exist:
-        if not dst.parent.writable_by(visitor):
-            return Forbidden
-        dst.create(owner=visitor)
-    if not dst.own_by(visitor) and dst.writable_by(visitor):
-        return Forbidden
-    dst.replace_meta(src.meta)
-    if not dst.removable_by(visitor):
-        return Forbidden
-    src.remove()
-    src.save()
-    dst.save()
-    return ok_response()
-
-
-def ok_response(data=None):
-    if isinstance(data, (str, unicode)):
-        data = {'detail': data}
-    return json.dumps(data or {}), 200
-
-
-def error_response(data=None, status_code=400):
-    if isinstance(data, (str, unicode)):
-        data = {'detail': data}
-    return json.dumps(data or {}), status_code
-
-
-OK = ok_response
-BadRequest = error_response('Bad Request', 400)
-Forbidden = error_response('Forbidden', 403)
-NotFound = error_response('Not Found', 404)
+BadRequest = 'Bad Request', 400
+#Forbidden = error_response('Forbidden', 403)
+#NotFound = error_response('Not Found', 404)
 
 
 if __name__ == '__main__':
+    if not fsutil.initialized():
+        fsutil.create_root_dir()
     app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=True)

@@ -1,79 +1,81 @@
-"""
-Node repr:
-
-    {
-        'path': '/img/girl',
-        'type': 'dir',  # dir/file
-        'owner': 'fans656',
-        'group': 'fans656',
-        'access': 0775,
-        'parent': '/img',
-        'ctime': '2018-05-12 23:24:01 UTC',
-        'mtime': '2018-05-14 09:18:22 UTC',
-    }
-
-dir extras:
-
-    {
-        'total-size': 2351348,
-        'descendant-mtime': '2018-05-17 14:25:07 UTC',
-    }
-
-file extras:
-
-    {
-        'storage': [
-            {
-                'type': 'local',
-                'path': '/home/fans656/test.jpg',
-            },
-            {
-                'type': 'qiniu',
-                'url': 'http://p7a4nj2zt.bkt.clouddn.com/blue.jpg',
-                'encryption': 'simple',
-            }
-        ],
-    }
-"""
+import os
 import json
+from collections import OrderedDict
 
 import pymongo
 
 import util
+from exceptions import *
+
+
+def get_existed_node(path):
+    node = get_node(path)
+    if not node.exist:
+        raise NotFound
+    return node
 
 
 def get_node(path):
-    path = util.normalized_path(path)
-    return Node(path)
+    return Node(util.normalized_path(path))
+
+
+def get_file_node(path):
+    node = get_node(path)
+    node.type = 'file'
+    return node
+
+
+def get_dir_node(path):
+    node = get_node(path)
+    if node.exist and not node.is_dir:
+        raise NotDir(node)
+    node.type = 'dir'
+    return node
 
 
 class Node(object):
 
-    def __init__(self, path):
-        meta = getdb().node.find_one({'path': path})
+    def __init__(self, path, meta=None):
+        if not meta:
+            meta = getdb().node.find_one({'path': path}, {'_id': False})
         if meta:
             self.meta = meta
             self.exist = True
         else:
-            self.meta = {}
+            self.meta = {
+                'name': os.path.basename(path),
+                'parent': get_parent_path(path),
+            }
             self.exist = False
         self.meta['path'] = path
 
     @property
-    def isdir(self):
-        return self.meta['isdir']
+    def path(self):
+        return self.meta['path']
 
     @property
-    def isfile(self):
-        return not self.isdir
+    def name(self):
+        return self.meta['name']
+
+    @property
+    def type(self):
+        return self.meta['type']
+
+    @type.setter
+    def type(self, type):
+        self.meta['type'] = type
+
+    @property
+    def is_dir(self):
+        return self.type == 'dir'
+
+    @property
+    def is_file(self):
+        return self.type == 'file'
 
     @property
     def parent(self):
-        return Node(self.meta['parent'])
-
-    @property
-    def access(self):
-        return self.meta['access']
+        return get_dir_node(self.meta['parent'])
 
     @property
     def owner(self):
@@ -84,12 +86,16 @@ class Node(object):
         return self.meta['group']
 
     @property
+    def access(self):
+        return self.meta['access']
+
+    @property
     def owner_readable(self):
         return bool(self.access & 0600)
 
     @property
     def owner_writable(self):
-        return bool(self.access & 0400)
+        return bool(self.access & 0200)
 
     @property
     def group_readable(self):
@@ -97,7 +103,7 @@ class Node(object):
 
     @property
     def group_writable(self):
-        return bool(self.access & 0040)
+        return bool(self.access & 0020)
 
     @property
     def other_readable(self):
@@ -105,120 +111,169 @@ class Node(object):
 
     @property
     def other_writable(self):
-        return bool(self.access & 0004)
+        return bool(self.access & 0002)
 
-    def readable_by(self, user):
-        if user.isroot:
-            return True
-        if user.own(self) and self.owner_readable:
-            return True
-        if user.in_group(self.group) and self.group_readable:
-            return True
-        if self.other_readable:
-            return True
-        return False
+    @property
+    def children(self):
+        metas = getdb().node.find({'parent': self.path}, {'_id': False})
+        return [Node(m['path'], m) for m in metas]
 
-    def writable_by(self, user):
-        if user.isroot:
-            return True
-        if self.own_by(user) and self.owner_writable:
-            return True
-        if user.in_group(self.group) and self.group_writable:
-            return True
-        if self.other_writable:
-            return True
-        return False
+    @property
+    def as_ls_entry(self):
+        return self.meta
 
-    def own_by(self, user):
-        return self.owner == user.username
+    def create(self, user, meta=None):
+        if self.exist:
+            raise Existed(self)
+        parent = self.parent
+        if not parent.exist:
+            self.parent.create(user, meta)
+        return self._create(user, meta)
 
-    def create(self, meta, user):
-        username = user['username']
+    def list(self, user):
+        if not user.can_read(self):
+            raise CantRead(self)
+        dirs = []
+        files = []
+        for child in self.children:
+            if child.is_dir:
+                dirs.append(child.as_ls_entry)
+            elif child.is_file:
+                files.append(child.as_ls_entry)
+        return {
+            'dirs': dirs,
+            'files': files,
+        }
+
+    def chown(self, operator, username):
+        return self.update_meta(operator, {'owner': username})
+
+    def chgrp(self, operator, group):
+        return self.update_meta(operator, {'group': group})
+
+    def chmod(self, operator, mod):
+        return self.update_meta(operator, {'access': mod})
+
+    def get_meta(self, user):
+        if not self.exist:
+            raise NotFound(self)
+        if not user.can_read(self):
+            raise CantRead(self)
+        return self.meta
+
+    def update_meta(self, operator, meta, silent=False):
+        if not meta:
+            return
+        if operator.own(self):
+            self._serialize(update=meta)
+        elif not silent:
+            raise CantWrite(self)
+        return self
+
+    def move(self, user, dst):
+        if not user.can_remove(self):
+            raise CantMove(self)
+        dst.clone(self)
+        src.remove()
+
+    def clone(self, user, src, silent=False):
+        try:
+            if self.exist:
+                raise AlreadyExist(dst)
+            if not src.exist:
+                raise NotFound(src)
+            if not user.can_write(dst.parent):
+                raise CantWrite(dst)
+            self.create(user, src.meta)
+            if src.is_dir and user.can_read(src):
+                for child in src.children:
+                    dst = get_node(self.path + '/' + child.name)
+                    dst._clone(user, child_src)
+            return True
+        except Exception as e:
+            if not silent:
+                raise e
+            return False
+
+    def remove(self, operator, recursive=False, silent=False):
+        if not self.exist:
+            if silent:
+                return
+            else:
+                raise NotExist(self)
+        parent = self.parent
+        if not operator.can_write(parent):
+            if silent:
+                return
+            else:
+                raise CantRemove(self)
+        if self.is_file:
+            self._remove_single()
+        elif self.is_dir:
+            if not recursive:
+                if silent:
+                    return
+                else:
+                    raise IsDir(self)
+            for child in self.children:
+                child.remove(operator, recursive, silent)
+            self._remove()
+
+    def iter_content(self, visitor):
+        if not visitor.can_read(self):
+            raise CantRead(self)
+        return 'todo'
+
+    def _remove(self):
+        getdb().node.remove({'path': self.path})
+
+    def _create(self, user, meta=None):
+        username = user.username
         now = util.utc_now_str()
         self.meta.update({
             'owner': username,
             'group': username,
-            'parent': get_parent_path(self.meta['path']),
+            'access': 0775 if self.is_dir else 0664,
             'ctime': now,
             'mtime': now,
+            'size': 0,
         })
+        self.meta.update(meta or {})
+        if not user.can_create(self):
+            raise CantCreate(self)
+        self.exist = True
+        self._serialize(update=self.meta, upsert=True)
+        return self
 
-    def save(self):
-        meta = self.meta
-        print json.dumps(meta, indent=2)
+    def _serialize(self, update=None, upsert=False):
+        self.meta.update(update or {})
+        getdb().node.update({'path': self.path}, self.meta, upsert=upsert)
 
     def __repr__(self):
-        return json.dumps({
-            'path': self.path,
-            'access': '{:03o}'.format(self.access),
-        })
+        return repr(self.meta)
 
+    def __str__(self):
+        meta = dict(self.meta)
+        if 'access' in meta:
+            meta['access'] = '0{:03o}'.format(meta['access'])
 
-class FileNode(Node):
+        def take(field):
+            d[field] = meta.get(field, '???')
 
-    def create(self, meta, user):
-        super(DirNode, self).create(meta, user)
-        self.meta.update({
-            'type': 'file',
-            'access': 0664,
-            'storage': [],
-        })
-
-
-class DirNode(Node):
-
-    @property
-    def children(self):
-        pass
-
-    def create(self, meta, user):
-        super(DirNode, self).create(meta, user)
-        self.meta.update({
-            'type': 'dir',
-            'access': 0775,
-            'total_size': 0,
-            'descendant_mtime': self.meta['mtime'],
-        })
-
-
-def user_own_node(user, node):
-    if is_root_user(user):
-        return True
-    if user['username'] == node.owner:
-        return True
-    return False
-
-
-def user_in_group(user, group):
-    if group == user['username']:
-        return True
-    if group in user.get('groups', []):
-        return True
-    return False
-
-
-def is_root_user(user):
-    return user['username'] == 'root'
-
-
-def create_root_directory():
-    Node('/', meta={
-        'path': '/',
-        'owner': 'root',
-        'group': 'root',
-        'access': 032,
-        'isdir': True,
-    }).save()
-
-
-def create_user_home_directory(user):
-    username = user['username']
-    Node('/home/' + username, meta={
-        'owner': username,
-        'group': username,
-        'access': 032,
-        'isdir': True,
-    }).save()
+        d = OrderedDict()
+        take('path')
+        take('type')
+        take('owner')
+        take('group')
+        take('access')
+        take('name')
+        take('parent')
+        take('ctime')
+        take('mtime')
+        for k, v in meta.items():
+            if k not in d:
+                d[k] = v
+        return 'Node({})'.format(json.dumps(d, indent=2))
 
 
 def getdb(g={}):
@@ -228,9 +283,9 @@ def getdb(g={}):
 
 
 def get_parent_path(path):
-    parts = path.split('/')
-    parts.pop()
-    path = '/'.join(parts)
+    if path == '/':
+        return ''
+    path = '/'.join(path.split('/')[:-1])
     if not path.startswith('/'):
         path = '/' + path
     return path

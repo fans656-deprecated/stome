@@ -1,11 +1,5 @@
-import json
 import hashlib
 import datetime
-
-import jwt
-from flask import request
-
-import conf
 
 
 def calc_md5(data):
@@ -14,23 +8,15 @@ def calc_md5(data):
     return m.hexdigest()
 
 
-def success_response(data=None):
-    if isinstance(data, (str, unicode)):
-        data = {'detail': data}
-    return json.dumps(data or {}), 200
-
-
-def error_response(data=None, status_code=400):
-    if isinstance(data, (str, unicode)):
-        data = {'detail': data}
-    return json.dumps(data or {}), status_code
-
-
 def utc_now_str():
-    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+    return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
 
 
 def normalized_path(path):
+    if not path:
+        return '/'
+    if len(path) > 1 and path.endswith('/'):
+        path = path[:-1]
     parts = []
     for part in path.split('/'):
         if not part or part == '.':

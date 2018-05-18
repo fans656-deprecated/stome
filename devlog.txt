@@ -22,3 +22,67 @@ fans656.me提供package上传功能，那么整个package的上传用rsync来做
 ) delete file
 ) auth server
 ) frontend user login
+
+2018-05-16 23:27:20
+
+***** below is thinking about file uploading
+
+PUT /img/girl.jpg
+{
+    'size': 2073,
+    'part-size': 128,
+    'part-beg': 1024,
+    'start': true,
+}
+
+[empty/done => uploading]
+
+    create/truncate file with name md5(path) for writing
+
+when all part is verified
+
+[uploading => storing]
+
+    initiate store process
+
+when any storage is done
+
+[storing => done]
+
+
+============================= md5(path) file deletion
+
+when a storing process is done or failed
+storing count +1
+when storing_count == total_storage_count
+delete the md5(path) file
+
+============================= storage process
+
+----------------------------- local
+
+[init => storing]
+
+    copy file to path
+
+[storing => done]
+
+----------------------------- qiniu
+
+[init => encrypting]
+
+    create file 'qiniu-encrypting' + md5(path) for writing
+
+when done writing
+
+[encrypting => uploading]
+
+    upload the file to qiniu
+
+[upload => done]
+
+===================== tech issues
+
+1. [done] How to manage process/thread execution
+2. [done] How to partly update mongodb document
+3. How to upload to qiniu
