@@ -18,10 +18,7 @@ def handle_exceptions(viewfunc):
     @functools.wraps(viewfunc)
     def decorated_viewfunc(*args, **kwargs):
         r = viewfunc(*args, **kwargs)
-        return json.dumps({
-            'errno': 200,
-            'res': r or '',
-        })
+        return json.dumps(r) or ''
         #try:
         #    r = viewfunc(*args, **kwargs)
         #    return r or ''
@@ -160,6 +157,7 @@ def delete_path(path):
 @app.after_request
 def after_request(r):
     r.headers['Cache-Control'] = 'no-cache'
+    r.headers['Access-Control-Allow-Origin'] = '*'
     return r
 
 
@@ -205,6 +203,9 @@ BadRequest = 'Bad Request', 400
 
 
 if __name__ == '__main__':
+    debug = True
+    if debug:
+        import test.setup
     if not fsutil.initialized():
         fsutil.create_root_dir()
-    app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=True)
+    app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=debug)

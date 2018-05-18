@@ -1,5 +1,4 @@
 import fsutil
-import filesystem
 from node import get_node, get_dir_node, get_file_node
 from user import User
 

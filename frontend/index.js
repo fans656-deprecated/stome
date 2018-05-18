@@ -49,8 +49,9 @@ function get_current_path() {
 
 function list_directory(path) {
   $.get({
-    url: filesystem_server_origin + path,
+    url: origin + path,
     success: function(data) {
+      console.log(data);
       populate_file_list(path, JSON.parse(data));
     }
   });
@@ -78,14 +79,15 @@ function navigate_to(path) {
   list_directory(path);
 }
 
-function make_directory_item({name, path}) {
+function make_directory_item(node) {
+  let name = node.name;
   if (name !== '..') {
     name += '/';
   }
   var a = $('<a>' + name + '</a>');
   a.addClass('dir')
-    .attr('href', get_origin() + path)
-    .attr('data-path', path);
+    .attr('href', get_origin() + node.path)
+    .attr('data-path', node.path);
   a.on('click', function(ev) {
     ev.preventDefault();
     navigate_to($(this).attr('data-path'));
@@ -93,11 +95,11 @@ function make_directory_item({name, path}) {
   return $('<li>').append(a);
 }
 
-function make_file_item({name, path}) {
-  var a = $('<a>' + name + '</a>');
+function make_file_item(file) {
+  var a = $('<a>' + file.name + '</a>');
   a.addClass('file')
-    .attr('href', get_origin() + path)
-    .attr('data-path', path);
+    .attr('href', get_origin() + file.path)
+    .attr('data-path', file.path);
   return $('<li>').append(a);
 }
 
@@ -112,25 +114,34 @@ function upload_files(files) {
   };
 }
 
-function upload_file(file, fpath) {
-  if (fpath) {
+function upload_file(file, path) {
+  if (path) {
     $('#name').val(null);
   }
-  fpath = fpath || file.name;
+  path = path || file.name;
+  if (!path.startsWith('/')) {
+    let cur = get_current_path();
+    if (!cur.endsWith('/')) {
+      cur += '/';
+    }
+    path = cur + path;
+  }
+  return;
   if (file.size < 1 * MB) {
-    upload_as_a_whole(file, fpath);
+    upload_as_a_whole(file, path);
   } else {
-    upload_as_parts(file, fpath);
+    upload_as_parts(file, path);
   }
 }
 
 function upload_as_a_whole(file, fpath) {
   var form = new FormData();
-  form.append('mimetype', file.type);
+  form.append('meta', {
+  });
   form.append('data', file);
   $.ajax({
     type: 'PUT',
-    url: filesystem_server_origin + '/' + fpath,
+    url: origin + '/' + fpath,
     data: form,
     contentType: false,
     processData: false,
@@ -167,7 +178,7 @@ function upload_as_parts(file, fpath) {
       form.append('mimetype', file.type);
       $.ajax({
         type: 'PUT',
-        url: filesystem_server_origin + '/' + fpath,
+        url: origin + '/' + fpath,
         data: form,
         contentType: false,
         processData: false,
