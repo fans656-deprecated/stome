@@ -17,7 +17,7 @@ from node import get_node, get_existed_node, get_file_node, get_dir_node
 app = Flask(__name__, template_folder='.')
 
 
-def handle_exceptions(viewfunc):
+def guarded(viewfunc):
     @functools.wraps(viewfunc)
     def decorated_viewfunc(*args, **kwargs):
         try:
@@ -31,7 +31,7 @@ def handle_exceptions(viewfunc):
 
 @app.route('/')
 @app.route('/<path:path>')
-@handle_exceptions
+@guarded
 def get_path(path=''):
     """
     + Download file
@@ -71,7 +71,7 @@ def get_path(path=''):
     if 'meta' in request.args:
         return node.get_meta(visitor)
     elif 'storage-templates' in request.args:
-        return json.dumps(store.storage.get_templates())
+        return {'templates': store.storage.get_templates()}
     elif node.is_dir:
         return node.list(visitor)
     elif node.is_file:
@@ -79,10 +79,10 @@ def get_path(path=''):
 
 
 @app.route('/<path:path>', methods=['PUT'])
-@handle_exceptions
+@guarded
 def put_path(path):
     """
-    1. Upload file
+    + Upload file
 
         PUT /img/girl.jpg
         <file-content>
@@ -93,19 +93,30 @@ def put_path(path):
             chunk-md5: chunk md5
             chunk-offset: chunk byte offset in file
 
-    2. Create directory
+    + Create directory
 
         PUT /img/
 
-    3. Modify file/directory metadata
+    + Modify file/directory metadata
 
         PUT /img/girl.jpg?meta
         {
             "access": 0600,
             "size": 13267,
         }
+
+    + Create/Update storage
+
+        PUT /?storage
+        {
+            'type': 'local',
+            'name': 'vultr-vps',
+            'root': '~/.stome-files',
+        }
     """
     visitor = get_visitor()
+    if 'storage' in request.args:
+        return
     if path.endswith('/'):
         node = get_dir_node(path)
     else:
@@ -119,7 +130,7 @@ def put_path(path):
 
 
 @app.route('/<path:path>', methods=['POST'])
-@handle_exceptions
+@guarded
 def post_path(path):
     """
     1. Rename file/directory

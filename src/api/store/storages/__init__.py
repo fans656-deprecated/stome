@@ -1,6 +1,7 @@
 import local
-#import qiniu
+import qiniu
 
 modules = [
     local,
+    qiniu,
 ]

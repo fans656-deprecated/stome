@@ -15,9 +15,6 @@ from store import *
 import store
 
 
-print store.storage.get_templates()
-
-
 def upload_file():
     class Stream(object):
 
@@ -45,3 +42,9 @@ def upload_file():
 
     content.write(Stream(data), 0, md5)
     print content
+
+
+origin = 'http://localhost:{}'.format(conf.port)
+r = requests.get(origin + '?storage-templates')
+storage_templates = r.json()['templates']
+print storage_templates[0]
