@@ -3,12 +3,15 @@ import json
 import functools
 import traceback
 
+import jwt
 from flask import *
 
 import conf
+import util
+import store
 import fsutil
 from user import User
-from node import get_node, get_existed_node
+from node import get_node, get_existed_node, get_file_node, get_dir_node
 
 
 app = Flask(__name__, template_folder='.')
@@ -17,14 +20,12 @@ app = Flask(__name__, template_folder='.')
 def handle_exceptions(viewfunc):
     @functools.wraps(viewfunc)
     def decorated_viewfunc(*args, **kwargs):
-        r = viewfunc(*args, **kwargs)
-        return json.dumps(r) or ''
-        #try:
-        #    r = viewfunc(*args, **kwargs)
-        #    return r or ''
-        #except Exception as e:
-        #    traceback.print_exc()
-        #    raise e
+        try:
+            r = viewfunc(*args, **kwargs)
+            return json.dumps(r) if r else 'ok'
+        except Exception as e:
+            traceback.print_exc()
+            return str(e), e.errno
     return decorated_viewfunc
 
 
@@ -33,15 +34,15 @@ def handle_exceptions(viewfunc):
 @handle_exceptions
 def get_path(path=''):
     """
-    1. Download file
+    + Download file
 
         GET /img/girl.jpg
 
-    2. List directory
+    + List directory
 
         GET /img
 
-    3. Retrieve file/directory metadata
+    + Retrieve file/directory metadata
 
         GET /img?meta=true
         GET /img/girl.jpg?meta=true
@@ -53,7 +54,11 @@ def get_path(path=''):
             }
         }
 
-    4. Query API page
+    + Get storage templates
+
+        GET /?storage-templates
+
+    + Query API page
 
         GET /?api=true
     """
@@ -65,6 +70,8 @@ def get_path(path=''):
 
     if 'meta' in request.args:
         return node.get_meta(visitor)
+    elif 'storage-templates' in request.args:
+        return json.dumps(store.storage.get_templates())
     elif node.is_dir:
         return node.list(visitor)
     elif node.is_file:
@@ -78,6 +85,13 @@ def put_path(path):
     1. Upload file
 
         PUT /img/girl.jpg
+        <file-content>
+
+        Parameters:
+
+            md5: full md5
+            chunk-md5: chunk md5
+            chunk-offset: chunk byte offset in file
 
     2. Create directory
 
@@ -85,11 +99,10 @@ def put_path(path):
 
     3. Modify file/directory metadata
 
-        PUT /img/girl.jpg
+        PUT /img/girl.jpg?meta
         {
-            "meta": {
-                "access": 0600
-            }
+            "access": 0600,
+            "size": 13267,
         }
     """
     visitor = get_visitor()
@@ -99,9 +112,10 @@ def put_path(path):
         node = get_file_node(path)
     if not node.exist:
         node.create(visitor)
-    node.update_meta(visitor, get_request_meta())
-    if request.files:
-        pass  # TODO handle upload
+    if 'meta' in request.args:
+        return node.update_meta(visitor, request.json)
+    else:
+        return handle_upload(visitor, node)
 
 
 @app.route('/<path:path>', methods=['POST'])
@@ -110,37 +124,33 @@ def post_path(path):
     """
     1. Rename file/directory
 
-        POST /img/girl.jpg
+        POST /img/girl.jpg?op=mv
         {
-            "op": "mv",
             "to": "t.jpeg"
         }
 
     2. Move file/directory
 
-        POST /img/girl.jpg
+        POST /img/girl.jpg?op=mv
         {
-            "op": "mv",
             "to": "/public/girl.jpg"
         }
 
     3. Copy file/directory
 
-        POST /img/girl.jpg
+        POST /img/girl.jpg?op=cp
         {
-            "op": "cp",
             "to": "/public/girl.jpg"
         }
     """
-    src = get_existed_node(path)
-    op = get_request_operation()
     visitor = get_visitor()
+    op = request.args.get('op')
+    src = get_existed_node(path)
+    dst = get_dst_node(src, request.args.get('to'))
     if op == 'mv':
-        dst = get_dst_node(node, request.args.get('to'))
         src.move(user, dst)
     elif op == 'cp':
-        if not dst.clone(user, src):
-            raise BadRequest
+        dst.clone(user, src)
 
 
 @app.route('/<path:path>', methods=['DELETE'])
@@ -158,6 +168,7 @@ def delete_path(path):
 def after_request(r):
     r.headers['Cache-Control'] = 'no-cache'
     r.headers['Access-Control-Allow-Origin'] = '*'
+    r.headers['Access-Control-Allow-Methods'] = '*'
     return r
 
 
@@ -167,20 +178,9 @@ def get_visitor():
         user = jwt.decode(token, conf.auth_pubkey, algorithm='RS512')
         if not fsutil.get_home_dir(user).exist:
             fsutil.create_home_dir_for(user)
-    except Exception:
+    except Exception as e:
         user = {'username': 'guest'}
     return User(user)
-
-
-def get_request_meta():
-    data = request.json or {}
-    return data.get('meta')
-
-
-def get_request_operation():
-    op = request.args.get('op')
-    if not op:
-        raise BadRequest
 
 
 def get_dst_node(src, to):
@@ -189,17 +189,43 @@ def get_dst_node(src, to):
     return get_node(to)
 
 
-def uploading_file():
-    return bool(request.files)
-
-
 def make_content_stream(node):
     return Response(node.iter_data(), mimetype=node.mimetype)
 
 
-BadRequest = 'Bad Request', 400
-#Forbidden = error_response('Forbidden', 403)
-#NotFound = error_response('Not Found', 404)
+def is_simple_upload():
+    return 'pos' not in request.args
+
+
+def handle_upload(visitor, node):
+    md5 = request.args.get('md5')
+    if md5:
+        content = store.get_content(id=md5, md5=md5)
+    else:
+        md5 = util.calc_md5(visitor.username + node.path)
+        content = store.get_content(id=md5)
+    size = request.args.get('size')
+    if not content.exist or size != content.size:
+        if size is None and 'offset' not in request.args:
+            size = request.headers['content-length']
+        content.create(size or node.size)
+    node.update_meta(visitor, {'md5': md5})
+
+    failed_bytes_range = content.write(
+        request.stream,
+        offset=request.args.get('offset', 0),
+        md5=request.args.get('chunk-md5')
+    )
+    if content.status == 'done':
+        node.update_meta({
+            'md5': content.md5,
+            'size': content.size,
+        })
+        content.ref += 1
+    if failed_bytes_range:
+        return json.dumps({
+            'failed': failed_bytes_range,
+        })
 
 
 if __name__ == '__main__':

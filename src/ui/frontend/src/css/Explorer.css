@@ -1,0 +1,28 @@
+.explorer {
+  background: var(--bg-color);
+  color: var(--fg-color);
+  height: 100%;
+}
+
+.explorer .main {
+  height: 100%;
+}
+
+.explorer .header {
+  border-bottom: 1px solid var(--spacer-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav {
+  min-width: 20%;
+  border-right: 1px solid var(--spacer-color);
+  padding: 1em 0 1em 0;
+}
+
+.content {
+  padding: 1em;
+  width: 100%;
+  display: flex;
+}

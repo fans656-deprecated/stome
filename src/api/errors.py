@@ -1,14 +1,11 @@
-class BadWrite(Exception):
-
-    def __init__(self, path, meta):
-        self.path = path
-        self.meta = meta
-
-
 class OperationError(Exception):
 
-    def __init__(self, path):
+    def __init__(self, path, errno=400):
         self.path = path
+        self.errno = errno
+
+    def __str__(self):
+        return '{}: {}'.format(self.__class__.__name__, self.path)
 
 
 class NotExist(OperationError): pass

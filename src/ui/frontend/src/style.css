@@ -1,0 +1,125 @@
+:root {
+  --bg-color: #21252B;
+  --fg-color: #9DA5AB;
+  --spacer-color: #333;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--bg-color);
+  color: var(--fg-color);
+}
+
+.main {
+  height: 100vh;
+}
+
+.vertical {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.horizontal {
+  display: flex;
+}
+
+.bottom {
+  align-self: flex-start;
+}
+
+.item-panel {
+  padding: 1em;
+  border-left: 1px solid var(--spacer-color);
+  min-width: 20%;
+  font-family: Consolas;
+  font-size: .8em;
+}
+
+.items {
+  width: 100%;
+}
+
+.item {
+  display: inline-flex;
+  flex-direction: column;
+  padding: .5em;
+  margin: 0 .5em;
+  min-width: 64px;
+  border-radius: 5px;
+}
+
+.item.active {
+  background: steelblue;
+  color: white;
+}
+
+.item:hover {
+  cursor: pointer;
+}
+
+.item .name {
+  font-size: .8em;
+  text-align: center;
+}
+
+button {
+  border: 1px solid #555;
+  background: var(--bg-color);
+  color: var(--fg-color);
+  padding: .5em;
+  min-width: 5em;
+}
+
+button.icon {
+  border: none;
+  background: var(--bg-color);
+  color: var(--fg-color);
+  min-width: 0;
+}
+
+button:hover {
+  cursor: pointer;
+}
+
+.dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: rgba(0,0,0, 0.4);
+  z-index: -999;
+}
+
+.dialog-ui {
+  padding: 2em;
+  border-radius: 5px;
+  min-width: 20vw;
+  min-height: 20vh;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog-buttons button {
+  margin: 0 .2em;
+}

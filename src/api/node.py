@@ -2,10 +2,9 @@ import os
 import json
 from collections import OrderedDict
 
-import pymongo
-
 import util
-from exceptions import *
+from db import getdb
+from errors import *
 
 
 def get_existed_node(path):
@@ -88,6 +87,10 @@ class Node(object):
     @property
     def access(self):
         return self.meta['access']
+
+    @property
+    def size(self):
+        return self.meta['size']
 
     @property
     def owner_readable(self):
@@ -233,11 +236,19 @@ class Node(object):
         self.meta.update({
             'owner': username,
             'group': username,
-            'access': 0775 if self.is_dir else 0664,
             'ctime': now,
             'mtime': now,
             'size': 0,
+            'storages': [],
         })
+        if self.is_dir:
+            self.meta.update({
+                'access': 0775,
+            })
+        else:
+            self.meta.update({
+                'access': 0664,
+            })
         self.meta.update(meta or {})
         if not user.can_create(self):
             raise CantCreate(self)
@@ -274,12 +285,6 @@ class Node(object):
             if k not in d:
                 d[k] = v
         return 'Node({})'.format(json.dumps(d, indent=2))
-
-
-def getdb(g={}):
-    if 'db' not in g:
-        g['db'] = pymongo.MongoClient().stome
-    return g['db']
 
 
 def get_parent_path(path):

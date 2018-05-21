@@ -1,0 +1,29 @@
+.tabs {
+  display: flex;
+  border: 1px solid black;
+  margin: 1em;
+}
+
+.tabs .tab-labels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tabs .tab-label {
+  padding: 1em;
+  border-right: 1px solid var(--spacer-color);
+}
+
+.tabs .tab-label:hover {
+  cursor: pointer;
+}
+
+.tabs .tab-label.active {
+  color: steelblue;
+  border-right: 2px solid steelblue;
+}
+
+.tabs .tab-content {
+  margin-left: 1em;
+}

@@ -19,8 +19,8 @@ def create_root_dir():
 def create_home_dir_for(user):
     node = get_home_dir(user)
     node.create(root_user)
-    node.chown(root_user, user.username)
-    node.chgrp(root_user, user.username)
+    node.chown(root_user, user['username'])
+    node.chgrp(root_user, user['username'])
     return node
 
 
@@ -31,7 +31,7 @@ def create_public_dir(path):
 
 
 def get_home_dir(user):
-    return get_dir_node('/home/' + user.username)
+    return get_dir_node('/home/' + user['username'])
 
 
 def ls(operator, path):
@@ -46,7 +46,3 @@ if __name__ == '__main__':
     from node import get_node, getdb
     from test.setup import *
     from pprint import pprint
-
-    for user in [root_user, user1, user2, guest_user]:
-        assert user.can_read(public_dir)
-        assert user.can_write(public_dir)
