@@ -122,8 +122,17 @@ class Node(object):
         return [Node(m['path'], m) for m in metas]
 
     @property
+    def children_count(self):
+        return len(self.children)
+
+    @property
     def as_ls_entry(self):
-        return self.meta
+        entry = dict(self.meta)
+        if self.is_dir:
+            entry.update({
+                'children_count': self.children_count,
+            })
+        return entry
 
     def create(self, user, meta=None):
         if self.exist:
@@ -143,10 +152,12 @@ class Node(object):
                 dirs.append(child.as_ls_entry)
             elif child.is_file:
                 files.append(child.as_ls_entry)
-        return {
+        res = self.as_ls_entry
+        res.update({
             'dirs': dirs,
             'files': files,
-        }
+        })
+        return res
 
     def chown(self, operator, username):
         return self.update_meta(operator, {'owner': username})

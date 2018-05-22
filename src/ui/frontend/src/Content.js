@@ -1,7 +1,7 @@
 import React from 'react';
 
 import Items from './Items';
-import { getListDirectoryResults } from './util';
+import { fetchDir } from './util';
 
 export default class Content extends React.Component {
   constructor(props) {
@@ -21,7 +21,7 @@ export default class Content extends React.Component {
   }
 
   populate = async (path) => {
-    const res = await getListDirectoryResults(path);
+    const res = await fetchDir(path);
     this.setState({
       dirs: res.dirs,
       files: res.files,
@@ -34,10 +34,15 @@ export default class Content extends React.Component {
         <Items
           dirs={this.state.dirs}
           files={this.state.files}
-          onPathChanged={this.props.onPathChanged}
+          onEnterDir={this.onEnterDir}
           onActiveItemChanged={this.props.onActiveItemChanged}
         />
       </div>
     );
+  }
+
+  onEnterDir = (dir) => {
+    this.props.onActiveItemChanged(dir);
+    this.props.onActiveDirChanged(dir);
   }
 }

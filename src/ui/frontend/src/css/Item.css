@@ -1,0 +1,21 @@
+.item {
+  display: inline-flex;
+  flex-direction: column;
+  padding: .5em;
+  margin: 0 .5em;
+  min-width: 64px;
+  border-radius: 5px;
+}
+
+.item.active {
+  background: steelblue;
+  color: white;
+}
+
+.item:hover {
+  cursor: pointer;
+}
+
+.item .name {
+  text-align: center;
+}

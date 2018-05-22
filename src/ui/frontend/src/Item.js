@@ -1,5 +1,7 @@
 import React from 'react';
 
+import './css/Item.css';
+
 import dirImg from './img/dir.png';
 import fileImg from './img/file.png';
 

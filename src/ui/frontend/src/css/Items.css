@@ -1,0 +1,9 @@
+.item-panel {
+  padding: 1em;
+  border-left: 1px solid var(--spacer-color);
+  min-width: 20%;
+}
+
+.items {
+  width: 100%;
+}

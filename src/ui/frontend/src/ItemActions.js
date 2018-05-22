@@ -16,7 +16,7 @@ export default class ItemActions extends React.Component {
             'cancel': null,
           }}
         >
-          <ManageStorage item={this.props.item}/>
+          <ManageStorage item={item}/>
         </Dialog>
       </div>
     );

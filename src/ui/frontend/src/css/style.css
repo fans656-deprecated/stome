@@ -4,15 +4,15 @@
   --spacer-color: #333;
 }
 
-body {
+html, body, #root {
   padding: 0;
   margin: 0;
-  background: var(--bg-color);
-  color: var(--fg-color);
+  height: 100%;
 }
 
-.main {
-  height: 100vh;
+#root {
+  background: var(--bg-color);
+  color: var(--fg-color);
 }
 
 .vertical {
@@ -27,41 +27,6 @@ body {
 
 .bottom {
   align-self: flex-start;
-}
-
-.item-panel {
-  padding: 1em;
-  border-left: 1px solid var(--spacer-color);
-  min-width: 20%;
-  font-family: Consolas;
-  font-size: .8em;
-}
-
-.items {
-  width: 100%;
-}
-
-.item {
-  display: inline-flex;
-  flex-direction: column;
-  padding: .5em;
-  margin: 0 .5em;
-  min-width: 64px;
-  border-radius: 5px;
-}
-
-.item.active {
-  background: steelblue;
-  color: white;
-}
-
-.item:hover {
-  cursor: pointer;
-}
-
-.item .name {
-  font-size: .8em;
-  text-align: center;
 }
 
 button {

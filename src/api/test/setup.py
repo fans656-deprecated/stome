@@ -4,8 +4,8 @@ from user import User
 
 
 root_user = User({'username': 'root'})
-user1 = User({'username': 'fans656', 'groups': ['tf']})
-user2 = User({'username': 'twiispa', 'groups': ['tf']})
+user1 = User({'username': 'fans656', 'groups': ['f6']})
+user2 = User({'username': 'tyn', 'groups': ['f6']})
 guest_user = User({'username': ''})
 
 

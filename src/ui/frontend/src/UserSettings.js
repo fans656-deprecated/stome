@@ -1,5 +1,7 @@
 import React from 'react';
 
+import {Tabs, Tab} from './Tabs';
+
 export default class UserSettings extends React.Component {
   render() {
     return (

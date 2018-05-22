@@ -112,6 +112,9 @@ def put_path(path):
             'type': 'local',
             'name': 'vultr-vps',
             'root': '~/.stome-files',
+            'userable-groups': [
+                'storage-local',
+            ]
         }
     """
     visitor = get_visitor()

@@ -5,12 +5,7 @@ import Explorer from './Explorer';
 class App extends React.Component {
   render() {
     return (
-      <div className="main">
-        <Explorer
-          rootPath={'/'}
-          activePath={this.props.location.pathname}
-        />
-      </div>
+      <Explorer rootPath={'/'} activePath={this.props.location.pathname}/>
     );
   }
 }

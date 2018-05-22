@@ -3,7 +3,7 @@ import IconSettings from 'react-icons/lib/md/settings';
 
 import UserSettings from './UserSettings';
 import Dialog from './Dialog';
-import {Tabs, Tab} from './Tabs';
+//import {Tabs, Tab} from './Tabs';
 
 export default class UserPanel extends React.Component {
   render() {

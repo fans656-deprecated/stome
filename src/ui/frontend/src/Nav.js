@@ -1,86 +1,103 @@
 import React from 'react';
-import { Treebeard } from 'react-treebeard';
+import PropTypes from 'prop-types';
 
-import { getListDirectoryResults } from './util';
+import Tree from './Tree';
+import { fetchDir } from './util';
 
 export default class Nav extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      cursor: null,
-      root: [],
-    };
+  state = {
+    tree: {},
   }
 
-  componentWillReceiveProps(props) {
-    const cursor = this.state.cursor;
-    if (!cursor || cursor.dir.path !== props.activePath) {
-      let node = getActiveNode(this.state.root, props.activePath);
-      expand(node);
-      this.onToggle(node, true);
-      this.setState({
-        cursor: node,
-      });
-    }
+  componentWillReceiveProps = (props) => {
+    //const cursor = this.state.cursor;
+    //if (!cursor || cursor.dir.path != props.activePath) {
+    //  this.expandToActivePath(props.activePath);
+    //}
   }
 
-  async componentDidMount() {
-    const res = await getListDirectoryResults(this.props.path);
-    this.populate(res.dirs);
-  }
-
-  populate = (dirs) => {
-    const path = this.props.path;
-    const root = {
-      name: path,
-      toggled: true,
-      children: [],
-      dir: {
-        name: path,
-        path: path,
-      }
-    };
-    root.children = makeChildren(root, dirs);
-    this.setState({root: root});
+  componentDidMount = async () => {
+    const root = await fetchDir(this.props.rootPath);
+    const tree = makeTree(root);
+    tree.loading = false;
+    tree.toggled = true;
+    this.setState({tree: tree});
+    //this.expandToActivePath(this.props.activePath);
+    //this.tree.activate(this.props.activePath);
   }
 
   render() {
     return (
       <div className="nav">
-        <Treebeard data={this.state.root} onToggle={this.onToggle}/>
+        <Tree
+          ref={ref => this.tree = ref}
+          tree={this.state.tree}
+          loadChildren={this.loadNodeChildren}
+        />
       </div>
     );
   }
 
-  onToggle = async (node, toggled) => {
-    if (this.state.cursor) {
-      this.state.cursor.active = false;
+  loadNodeChildren = (node) => {
+    console.log(node);
+    return [];
+  }
+
+  expandToActivePath = async (path) => {
+    let node = this.state.tree;
+    const parts = path.split('/').splice(1);
+    for (let part of parts) {
+      await this.expand(node);
+      if (node.children) {
+        let found = false;
+        for (let checkNode of node.children) {
+          if (checkNode.dir.name === part) {
+            node = checkNode;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          break;
+        }
+      }
     }
-    node.active = true;
-    if (node.children) {
-      node.toggled = toggled;
+    this.onToggle(node, true);
+  }
+
+  expand = async (node) => {
+    if (node.loading) {
+      const dir = await fetchDir(node.dir.path);
+      node.children = dir.dirs;
     }
-    const res = await getListDirectoryResults(node.dir.path);
-    node.loading = false;
-    node.children = makeChildren(node, res.dirs);
+    this.tree.expand(node, false);
+  }
+
+  setActiveDir = (node) => {
+    this.props.onActiveDirChanged(node.dir);
     this.setState({
       cursor: node
     });
-    this.props.onActivePathChanged(node.dir.path);
+  }
+
+  fetchNodeData = (node) => {
   }
 }
 
-function makeChildren(parent, dirs) {
-  return dirs.map(dir => {
-    return {
-      name: dir.name,
-      loading: true,
-      children: [],
-      dir: dir,
-      parent: parent,
-    };
-  });
-}
+Nav.propTypes = {
+  rootPath: PropTypes.string,
+  activePath: PropTypes.string,
+};
+
+function makeTree(root) {
+  return {
+    name: root.name,
+    loading: true,
+    hasChildren: root.children_count > 0,
+    children: root.dirs ? root.dirs.map(makeTree) : [],
+    dir: root,
+  };
+};
 
 function getActiveNode(tree, path) {
   if (tree.dir.path === path) {

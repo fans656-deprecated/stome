@@ -11,13 +11,13 @@ export default class Detail extends React.Component {
       ['Group', item.group],
       ['Access', accessToString(item.access)],
     ]);
-    if (item.type == 'file') {
+    if (item.type === 'file') {
     }
     return (
       <div className="item-detail">
         {
           detail.map(([name, value]) => (
-            <p><span>{name}</span>: <span>{value}</span></p>
+            <p key={name}><span>{name}</span>: <span>{value}</span></p>
           ))
         }
       </div>
@@ -27,11 +27,11 @@ export default class Detail extends React.Component {
 
 function accessToString(access) {
   let a = [];
-  a.push(access & 0o600 ? 'r' : '-');
-  a.push(access & 0o400 ? 'w' : '-');
-  a.push(access & 0o060 ? 'r' : '-');
-  a.push(access & 0o040 ? 'w' : '-');
-  a.push(access & 0o006 ? 'r' : '-');
-  a.push(access & 0o004 ? 'w' : '-');
+  a.push(access & 0o400 ? 'r' : '-');
+  a.push(access & 0o200 ? 'w' : '-');
+  a.push(access & 0o040 ? 'r' : '-');
+  a.push(access & 0o020 ? 'w' : '-');
+  a.push(access & 0o004 ? 'r' : '-');
+  a.push(access & 0o002 ? 'w' : '-');
   return a.join('');
 }

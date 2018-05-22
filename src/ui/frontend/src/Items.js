@@ -2,6 +2,8 @@ import React from 'react';
 
 import Item from './Item';
 
+import './css/Items.css';
+
 export default class Items extends React.Component {
   constructor(props) {
     super(props);
@@ -38,7 +40,7 @@ export default class Items extends React.Component {
   onItemClicked = (item) => {
     if (item === this.state.activeItem) {
       this.setActiveItem(null);
-      this.props.onPathChanged(item.getItem().path);
+      this.props.onEnterDir(item.getItem());
     } else {
       this.activateItem(item);
     }
