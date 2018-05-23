@@ -40,7 +40,7 @@ def get_path(path=''):
 
     + List directory
 
-        GET /img
+        GET /img?depth=2
 
     + Retrieve file/directory metadata
 
@@ -73,7 +73,8 @@ def get_path(path=''):
     elif 'storage-templates' in request.args:
         return {'templates': store.storage.get_templates()}
     elif node.is_dir:
-        return node.list(visitor)
+        depth = int(request.args.get('depth', 1))
+        return node.list(visitor, depth)
     elif node.is_file:
         return make_content_stream(node)
 

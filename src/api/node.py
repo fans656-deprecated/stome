@@ -122,17 +122,8 @@ class Node(object):
         return [Node(m['path'], m) for m in metas]
 
     @property
-    def children_count(self):
-        return len(self.children)
-
-    @property
     def as_ls_entry(self):
-        entry = dict(self.meta)
-        if self.is_dir:
-            entry.update({
-                'children_count': self.children_count,
-            })
-        return entry
+        return dict(self.meta)
 
     def create(self, user, meta=None):
         if self.exist:
@@ -142,22 +133,10 @@ class Node(object):
             self.parent.create(user, meta)
         return self._create(user, meta)
 
-    def list(self, user):
+    def list(self, user, depth):
         if not user.can_read(self):
             raise CantRead(self)
-        dirs = []
-        files = []
-        for child in self.children:
-            if child.is_dir:
-                dirs.append(child.as_ls_entry)
-            elif child.is_file:
-                files.append(child.as_ls_entry)
-        res = self.as_ls_entry
-        res.update({
-            'dirs': dirs,
-            'files': files,
-        })
-        return res
+        return list_directory(self, depth)
 
     def chown(self, operator, username):
         return self.update_meta(operator, {'owner': username})
@@ -305,6 +284,29 @@ def get_parent_path(path):
     if not path.startswith('/'):
         path = '/' + path
     return path
+
+
+def list_directory(node, depth):
+    dirs = []
+    files = []
+    for child in node.children:
+        if child.is_dir:
+            dirs.append(get_list_result(child, depth - 1))
+        elif child.is_file:
+            files.append(get_list_result(child.as_ls_entry, depth - 1))
+    res = node.as_ls_entry
+    res.update({
+        'dirs': dirs,
+        'files': files,
+    })
+    return res
+
+
+def get_list_result(node, depth):
+    if depth:
+        return list_directory(node, depth)
+    else:
+        return node.as_ls_entry
 
 
 if __name__ == '__main__':

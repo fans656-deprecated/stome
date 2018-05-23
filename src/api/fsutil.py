@@ -1,3 +1,5 @@
+import os
+
 from user import User, root_user
 from node import getdb, get_node, get_dir_node
 
@@ -27,6 +29,13 @@ def create_home_dir_for(user):
 def create_public_dir(path):
     node = get_dir_node(path).create(root_user)
     node.chmod(root_user, 0777)
+    return node
+
+
+def create_dir(user, path):
+    path = os.path.join(get_home_dir(user).path, path)
+    node = get_dir_node(path)
+    node.create(user)
     return node
 
 

@@ -1,23 +1,26 @@
 .tree {
-  list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .tree-node {
+  margin: 0;
+  padding: .1em 1em;
   display: flex;
   align-items: center;
-  padding: .2em;
+}
+
+.tree-node:hover {
+  cursor: pointer;
+  background: #2B2E35;
 }
 
 .tree-node.active {
   background: #31363F;
 }
 
-.tree-node:hover {
-  cursor: pointer;
-}
-
+/*
 .tree-node-arrow:hover {
   color: #3288E3;
 }
+*/

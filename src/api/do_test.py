@@ -45,6 +45,5 @@ def upload_file():
 
 
 origin = 'http://localhost:{}'.format(conf.port)
-r = requests.get(origin + '?storage-templates')
-storage_templates = r.json()['templates']
-print storage_templates[0]
+r = requests.get(origin + '?depth=2')
+print json.dumps(r.json(), indent=2)

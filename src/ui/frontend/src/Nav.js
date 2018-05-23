@@ -6,78 +6,44 @@ import { fetchDir } from './util';
 
 export default class Nav extends React.Component {
   state = {
-    tree: {},
+    tree: null,
   }
 
-  componentWillReceiveProps = (props) => {
-    //const cursor = this.state.cursor;
-    //if (!cursor || cursor.dir.path != props.activePath) {
-    //  this.expandToActivePath(props.activePath);
-    //}
+  componentWillReceiveProps = async (props) => {
+    //console.log(props);
+    //await this.expandTo(props.activePath || props.rootPath);
   }
 
   componentDidMount = async () => {
-    const root = await fetchDir(this.props.rootPath);
-    const tree = makeTree(root);
-    tree.loading = false;
-    tree.toggled = true;
-    this.setState({tree: tree});
-    //this.expandToActivePath(this.props.activePath);
-    //this.tree.activate(this.props.activePath);
+    const rootPath = this.props.rootPath;
+    const dir = await fetchDir(rootPath, 2);
+    const root = makeNode(dir);
+    root.loaded = true;
+    root.toggled = true;
+    const currentPath = this.props.currentPath || rootPath;
+    const lastNode = await expand(root, currentPath);
+    console.log(root);
+    //this.setState({tree: root}, () => this.tree.select(lastNode));
   }
 
   render() {
+    //console.log(this.props.currentPath);
+    return null;
+    if (!this.state.tree) return null;
     return (
       <div className="nav">
         <Tree
           ref={ref => this.tree = ref}
-          tree={this.state.tree}
-          loadChildren={this.loadNodeChildren}
+          root={this.state.tree}
+          load={loadChildren}
+          onSelect={this.setActiveDir}
         />
       </div>
     );
   }
 
-  loadNodeChildren = (node) => {
-    console.log(node);
-    return [];
-  }
-
-  expandToActivePath = async (path) => {
-    let node = this.state.tree;
-    const parts = path.split('/').splice(1);
-    for (let part of parts) {
-      await this.expand(node);
-      if (node.children) {
-        let found = false;
-        for (let checkNode of node.children) {
-          if (checkNode.dir.name === part) {
-            node = checkNode;
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          break;
-        }
-      }
-    }
-    this.onToggle(node, true);
-  }
-
-  expand = async (node) => {
-    if (node.loading) {
-      const dir = await fetchDir(node.dir.path);
-      node.children = dir.dirs;
-    }
-    this.tree.expand(node, false);
-  }
-
   setActiveDir = (node) => {
     this.props.onActiveDirChanged(node.dir);
-    this.setState({
-      cursor: node
-    });
   }
 
   fetchNodeData = (node) => {
@@ -92,7 +58,7 @@ Nav.propTypes = {
 function makeTree(root) {
   return {
     name: root.name,
-    loading: true,
+    loaded: false,
     hasChildren: root.children_count > 0,
     children: root.dirs ? root.dirs.map(makeTree) : [],
     dir: root,
@@ -118,4 +84,45 @@ function expand(node) {
     node = node.parent;
     node.toggled = true;
   }
+}
+
+async function loadNode(node) {
+  node.children = await loadChildren(node);
+  node.loaded = true;
+  return node;
+}
+
+async function loadChildren(node) {
+  const dir = await fetchDir(node.dir.path, 2);
+  return dir.dirs.map(makeNode);
+}
+
+function makeNode(dir) {
+  const node = {
+    name: dir.name,
+    loaded: false,
+    dir: dir,
+  };
+  if (dir.dirs) {
+    node.children = dir.dirs.map(makeNode);
+  }
+  return node;
+}
+
+async function expand(root, path) {
+  return await _expand(root, path.split('/'));
+}
+
+async function _expand(root, names) {
+  if (names.length === 0 || root.name !== names[0]) return null;
+  root.toggled = true;
+  if (!root.loaded) await loadNode(root);
+  names = names.splice(1);
+  let ret = root;
+  if (names.length > 0) {
+    for (let child of root.children) {
+      ret = await _expand(child, names) || ret;
+    }
+  }
+  return ret;
 }

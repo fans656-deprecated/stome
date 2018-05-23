@@ -1,11 +1,16 @@
 import React from 'react';
-import { withRouter } from 'react-router-dom';
+import { Link, withRouter } from 'react-router-dom';
 import Explorer from './Explorer';
 
 class App extends React.Component {
   render() {
     return (
-      <Explorer rootPath={'/'} activePath={this.props.location.pathname}/>
+      <div>
+        <button onClick={() => this.props.history.push('/')}>Root</button>
+        <button onClick={() => this.props.history.push('/home')}>Home</button>
+        <button onClick={() => this.props.history.push('/home/fans656')}>fans656</button>
+        <Explorer rootPath={'/'} currentPath={this.props.location.pathname}/>
+      </div>
     );
   }
 }

@@ -15,4 +15,6 @@ root_dir = fsutil.create_root_dir()
 home1 = fsutil.create_home_dir_for(user1)
 home2 = fsutil.create_home_dir_for(user2)
 
+fsutil.create_dir(user1, 'img/girl')
+
 public_dir = fsutil.create_public_dir('/public')

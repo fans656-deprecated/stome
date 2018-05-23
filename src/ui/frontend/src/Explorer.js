@@ -6,43 +6,51 @@ import Content from './Content';
 import ItemPanel from './ItemPanel';
 import Pather from './Pather';
 import UserPanel from './UserPanel';
+import getRootNode from './node';
 import { fetchDir } from './util';
 
 import './css/Explorer.css';
 
 export default class Explorer extends React.Component {
-  state = {
-    currentPath: null,
-    selectedItem: null,
+  constructor(props) {
+    super(props);
+    this.state = {
+      currentDir: null,
+      selectedItem: null,
+    }
+  }
+
+  componentWillReceiveProps(props) {
+    //this.setState({currentPath: props.currentPath});
   }
 
   componentDidMount = async () => {
-    const dir = await fetchDir(this.props.activePath);
-    this.setCurrentDir(dir);
+    const root = await getRootNode(this.props.rootPath);
+    root.loadChildren();
+    console.log(root);
+    //this.setState({currentDir: );
   }
 
   render() {
-    const currentDir = this.state.currentDir;
-    if (!currentDir) {
-      return null;
-    }
-    const currentPath = currentDir.path;
+    //console.log(this.state.currentDir);
+    return null;
     return (
       <div className="explorer">
         <header className="horizontal">
-          <Pather path={currentPath}/>
-          <UserPanel/>
+          {true ? null : <Pather path={this.state.currentPath}/>}
+          {true ? null : <UserPanel/>}
         </header>
         <main className="main horizontal">
           <Nav rootPath={this.props.rootPath}
-            activePath={currentPath}
-            onActiveDirChanged={this.setCurrentDir}
+            currentPath={this.state.currentPath}
+            onActiveDirChanged={this.changeDir}
           />
-          <Content path={currentPath}
+          {true ? null : <Content path={this.state.currentPath}
             onActiveDirChanged={this.setCurrentDir}
             onActiveItemChanged={this.setSelectedItem}
           />
-          <ItemPanel item={this.getActiveItem()}/>
+          }
+          {true ? null : <ItemPanel item={this.getActiveItem()}/>}
         </main>
         <footer>
           <div>
@@ -53,9 +61,18 @@ export default class Explorer extends React.Component {
     );
   }
 
+  load = (rootPath, currentPath) => {
+    const root = fetchDir(this.props.rootPath, 2);
+  }
+
   getActiveItem = () => this.state.selectedItem || this.state.currentDir
 
-  setCurrentDir = (dir) => this.setState({currentDir: dir})
+  changeDir = (dir) => {
+    this.setState({
+      currentDir: dir,
+      currentPath: dir.path,
+    });
+  }
 
   setSelectedItem = (item) => this.setState({selectedItem: item})
 }
