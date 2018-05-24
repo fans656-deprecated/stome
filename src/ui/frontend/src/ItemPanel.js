@@ -11,9 +11,9 @@ export default class ItemPanel extends React.Component {
     }
     return (
       <div className="item-panel vertical">
-        <ItemDetail item={this.props.item}/>
+        <ItemDetail item={this.props.item.meta}/>
         <div className="bottom" style={{background: '#555'}}>
-          <ItemActions item={this.props.item}/>
+          <ItemActions item={this.props.item.meta}/>
         </div>
       </div>
     );

@@ -123,7 +123,11 @@ class Node(object):
 
     @property
     def as_ls_entry(self):
-        return dict(self.meta)
+        r = dict(self.meta)
+        r.update({
+            'listable': self.is_dir,
+        })
+        return r
 
     def create(self, user, meta=None):
         if self.exist:

@@ -1,128 +1,94 @@
 import React from 'react';
-import PropTypes from 'prop-types';
+import IconDown from 'react-icons/lib/fa/angle-down';
+import IconRight from 'react-icons/lib/fa/angle-right';
+//import { ClipLoader as Spinner } from 'react-spinners';
 
-import Tree from './Tree';
-import { fetchDir } from './util';
+import './css/Tree.css';
 
-export default class Nav extends React.Component {
-  state = {
-    tree: null,
-  }
-
-  componentWillReceiveProps = async (props) => {
-    //console.log(props);
-    //await this.expandTo(props.activePath || props.rootPath);
-  }
-
-  componentDidMount = async () => {
-    const rootPath = this.props.rootPath;
-    const dir = await fetchDir(rootPath, 2);
-    const root = makeNode(dir);
-    root.loaded = true;
-    root.toggled = true;
-    const currentPath = this.props.currentPath || rootPath;
-    const lastNode = await expand(root, currentPath);
-    console.log(root);
-    //this.setState({tree: root}, () => this.tree.select(lastNode));
-  }
-
+export default class Tree extends React.Component {
   render() {
-    //console.log(this.props.currentPath);
-    return null;
-    if (!this.state.tree) return null;
     return (
       <div className="nav">
-        <Tree
-          ref={ref => this.tree = ref}
-          root={this.state.tree}
-          load={loadChildren}
-          onSelect={this.setActiveDir}
-        />
+        <div className="tree">
+          {this.renderNodes(this.props.tree.root, 0, 0)}
+        </div>
       </div>
     );
   }
 
-  setActiveDir = (node) => {
-    this.props.onActiveDirChanged(node.dir);
-  }
-
-  fetchNodeData = (node) => {
-  }
-}
-
-Nav.propTypes = {
-  rootPath: PropTypes.string,
-  activePath: PropTypes.string,
-};
-
-function makeTree(root) {
-  return {
-    name: root.name,
-    loaded: false,
-    hasChildren: root.children_count > 0,
-    children: root.dirs ? root.dirs.map(makeTree) : [],
-    dir: root,
-  };
-};
-
-function getActiveNode(tree, path) {
-  if (tree.dir.path === path) {
-    return tree;
-  }
-  if (tree.children) {
-    for (let child of tree.children) {
-      let node = getActiveNode(child, path);
-      if (node) {
-        return node;
-      }
+  renderNodes = (root, ith, depth) => {
+    const nodes = [];
+    let classes = ['tree-node'];
+    if (root.isCurrentDir()) {
+      classes.push('active');
     }
-  }
-}
-
-function expand(node) {
-  while (node.parent) {
-    node = node.parent;
-    node.toggled = true;
-  }
-}
-
-async function loadNode(node) {
-  node.children = await loadChildren(node);
-  node.loaded = true;
-  return node;
-}
-
-async function loadChildren(node) {
-  const dir = await fetchDir(node.dir.path, 2);
-  return dir.dirs.map(makeNode);
-}
-
-function makeNode(dir) {
-  const node = {
-    name: dir.name,
-    loaded: false,
-    dir: dir,
-  };
-  if (dir.dirs) {
-    node.children = dir.dirs.map(makeNode);
-  }
-  return node;
-}
-
-async function expand(root, path) {
-  return await _expand(root, path.split('/'));
-}
-
-async function _expand(root, names) {
-  if (names.length === 0 || root.name !== names[0]) return null;
-  root.toggled = true;
-  if (!root.loaded) await loadNode(root);
-  names = names.splice(1);
-  let ret = root;
-  if (names.length > 0) {
-    for (let child of root.children) {
-      ret = await _expand(child, names) || ret;
+    nodes.push(
+      <div className={classes.join(' ')}
+        key={ith + '-' + depth}
+        style={{paddingLeft: depth + 'em'}}
+        onClick={() => this.props.onNodeClicked(root)}
+        onMouseDown={(ev) => ev.preventDefault()}
+      >
+        <Arrow node={root} onClick={(ev) => this.toggleNode(ev, root)}/>
+        <Name node={root}/>
+      </div>
+    );
+    if (root.toggled && root.dirs) {
+      root.dirs.forEach((child, i) => {
+        nodes.push(...this.renderNodes(child, i, depth + 1));
+      });
     }
+    return nodes;
   }
-  return ret;
+
+  toggleNode = async (ev, node) => {
+    ev.stopPropagation();
+    await node.toggle();
+    this.props.onNodeToggled();
+  }
 }
+
+const Arrow = ({node, onClick}) => {
+  const Icon = node.toggled ? IconDown : IconRight;
+  return (
+    <Icon
+      className="tree-node-arrow"
+      size={20}
+      style={{
+        visibility: node.hasSubDirs() ? 'visible' : 'hidden',
+      }}
+      onClick={onClick}
+    />
+  );
+}
+
+const Name = ({node}) => (
+  <span className="tree-node-name">
+    {node.meta.name}
+  </span>
+);
+
+//class Loading extends React.Component {
+//  state = {loading: false}
+//
+//  componentDidMount = async () => {
+//    await new Promise(resolve => setTimeout(resolve, 100));
+//    this.setState({loading: true});
+//  }
+//
+//  render() {
+//    return (
+//      <span style={{
+//          marginLeft: '.5em',
+//          position: 'relative',
+//          top: '.2em',
+//        }}
+//      >
+//        <Spinner loading={this.state.loading}
+//          size={8}
+//          color='var(--fg-color)'
+//        />
+//      </span>
+//    );
+//  }
+//}

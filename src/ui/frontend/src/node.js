@@ -1,6 +1,12 @@
 import { fetchDir } from './util';
 
-export default async function getRootDir(path) {
+export default async function getTree(path) {
+  const tree = new Tree(await getRootByPath(path));
+  Node.tree = tree;
+  return tree;
+}
+
+async function getRootByPath(path) {
   const meta = await fetchDir(path);
   const node = new Node(meta);
   return node;
@@ -12,35 +18,78 @@ class Node {
     this.parent = parent || null;
   }
 
-  getDescendant = async (path) => {
+  hasSubDirs = () => {
+    return this.dirs && this.dirs.length > 0;
+  }
+
+  isCurrentDir = () => {
+    return this === Node.tree.currentDir;
+  }
+
+  isCurrentItem = () => {
+    return this === Node.tree.currentItem;
+  }
+
+  toggle = async (toggled) => {
+    this.toggled = toggled == null ? !this.toggled : toggled;
+    for (let dir of this.dirs) await dir.loadChildren();
+  }
+
+  findByPath = async (path, callback) => {
     if (!path) return;
-    if (!this.children) this.loadChildren();
+    return this._findByPathNames(path.split('/'), callback);
   }
 
-  loadChildren = () => {
-    if (this.children) return;
+  loadChildren = async () => {
     const meta = this.meta;
-    this.dirs = meta.dirs.map((dir) => new Node(dir, this));
-    this.files = meta.files.map((file) => new Node(file, this));
-    this.children = this.dirs.concat(this.files);
-    this.loaded = true;
-  }
-}
-
-async function getDescendant(node, path) {
-  if (!path) return;
-  return await _getDescendant(node, path.split('/'));
-}
-
-async function _getDescendant(node, names) {
-  if (names.length === 0 || node.meta.name !== names[0]) return;
-  if (!node.children) await node.loadChildren();
-  names = names.splice(1);
-  let ret = node;
-  if (names.length > 0) {
-    for (let child of node.children) {
-      ret = await _getDescendant(child, names) || ret;
+    if (meta.listable && !this.children) {
+      this.dirs = await this._loadChildren(meta.dirs);
+      this.files = await this._loadChildren(meta.files);
+      this.children = this.dirs.concat(this.files);
     }
   }
-  return ret;
+
+  _findByPathNames = async (names, callback) => {
+    if (names.length === 0) return null;
+    if (this.meta.name !== names[0]) return null;
+    if (!this.children) await this.loadChildren();
+    if (callback) await callback(this);
+    let ret = this;
+    names = names.splice(1);
+    if (this.dirs) {
+      for (let child of this.dirs) {
+        ret = await child._findByPathNames(names, callback) || ret;
+      }
+    }
+    return ret;
+  }
+
+  _loadChildren = async (metas) => {
+    return await Promise.all(
+      metas.map(async (meta) => {
+        meta = await fetchDir(meta.path);
+        return await new Node(meta, this);
+      })
+    );
+  }
+}
+
+class Tree {
+  constructor(root) {
+    this.root = root;
+    this.currentDir = null;
+    this.currentItem = null;
+  }
+
+  setCurrentPath = async (path) => {
+    const currentDir = await this.root.findByPath(path, async (node) => {
+      for (let dir of node.dirs) await dir.loadChildren();
+      node.toggled = true;
+    });
+    this.setCurrentDir(currentDir);
+  }
+
+  setCurrentDir = (node) => {
+    this.currentDir = node;
+  }
 }

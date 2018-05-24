@@ -1,0 +1,39 @@
+.dialog-present {
+  filter: blur(4px);
+}
+
+.dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dialog-ui {
+  border: 1px solid var(--fg-color);
+  min-width: 20vw;
+  min-height: 20vh;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dialog-content {
+  padding: 1.5em;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.5em;
+}
+
+.dialog-buttons button {
+  margin: 0 .4em;
+  border: 1px solid var(--fg-color);
+}

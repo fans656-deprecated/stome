@@ -10,6 +10,9 @@ export default class UserSettings extends React.Component {
           <Tab>
             <h1>Storage</h1>
           </Tab>
+          <Tab>
+            <h1>Other</h1>
+          </Tab>
         </Tabs>
       </div>
     );

@@ -5,7 +5,7 @@
 
 .tree-node {
   margin: 0;
-  padding: .1em 1em;
+  padding: .1em 0;
   display: flex;
   align-items: center;
 }
@@ -19,8 +19,10 @@
   background: #31363F;
 }
 
-/*
+.tree-node-arrow {
+  padding: 0 .2em;
+}
+
 .tree-node-arrow:hover {
   color: #3288E3;
 }
-*/

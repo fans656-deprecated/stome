@@ -44,6 +44,8 @@ def upload_file():
     print content
 
 
-origin = 'http://localhost:{}'.format(conf.port)
-r = requests.get(origin + '?depth=2')
-print json.dumps(r.json(), indent=2)
+upload_file()
+
+#origin = 'http://localhost:{}'.format(conf.port)
+#r = requests.get(origin + '?depth=2')
+#print json.dumps(r.json(), indent=2)

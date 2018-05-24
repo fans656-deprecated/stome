@@ -1,83 +1,87 @@
 import React from 'react';
-import PropTypes from 'prop-types';
+import { withRouter } from 'react-router-dom';
 
+import Pather from './Pather';
+import UserPanel from './UserPanel';
 import Nav from './Nav';
 import Content from './Content';
 import ItemPanel from './ItemPanel';
-import Pather from './Pather';
-import UserPanel from './UserPanel';
-import getRootNode from './node';
-import { fetchDir } from './util';
+import StatusBar from './StatusBar';
+import getTree from './node';
 
 import './css/Explorer.css';
 
-export default class Explorer extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      currentDir: null,
-      selectedItem: null,
-    }
+class Explorer extends React.Component {
+  state = {
+    tree: null,
   }
 
-  componentWillReceiveProps(props) {
-    //this.setState({currentPath: props.currentPath});
+  componentWillReceiveProps = async (props) => {
+    await this.state.tree.setCurrentPath(props.currentPath);
+    this.setState({});
   }
 
   componentDidMount = async () => {
-    const root = await getRootNode(this.props.rootPath);
-    root.loadChildren();
-    console.log(root);
-    //this.setState({currentDir: );
+    const tree = await getTree(this.props.rootPath);
+    await tree.setCurrentPath(this.props.currentPath);
+    window.root = tree.root;
+    this.setState({tree: tree});
   }
 
   render() {
-    //console.log(this.state.currentDir);
-    return null;
+    const tree = this.state.tree;
+    if (!tree) return null;
     return (
       <div className="explorer">
         <header className="horizontal">
-          {true ? null : <Pather path={this.state.currentPath}/>}
-          {true ? null : <UserPanel/>}
+          <Pather path={this.state.tree.currentDir.meta.path}/>
+          <UserPanel/>
         </header>
-        <main className="main horizontal">
-          <Nav rootPath={this.props.rootPath}
-            currentPath={this.state.currentPath}
-            onActiveDirChanged={this.changeDir}
+        <main className="horizontal">
+          <Nav tree={this.state.tree}
+            onNodeClicked={this.onNodeClickedInNav}
+            onNodeToggled={this.onNodeToggledInNav}
           />
-          {true ? null : <Content path={this.state.currentPath}
-            onActiveDirChanged={this.setCurrentDir}
-            onActiveItemChanged={this.setSelectedItem}
+          <Content dir={this.state.tree.currentDir}
+            onClick={this.onItemClickedInContent}
           />
-          }
-          {true ? null : <ItemPanel item={this.getActiveItem()}/>}
+          <ItemPanel item={tree.currentItem || tree.currentDir}/>
         </main>
         <footer>
-          <div>
-            <span>Stome</span>
-          </div>
+          <StatusBar item={tree.currentItem || tree.currentDir}/>
         </footer>
       </div>
     );
   }
 
-  load = (rootPath, currentPath) => {
-    const root = fetchDir(this.props.rootPath, 2);
+  onNodeClickedInNav = async (node) => {
+    if (node.isCurrentDir()) {
+      await node.toggle();
+    } else {
+      this.changeCurrentDir(node);
+    }
+    this.setState({});
   }
 
-  getActiveItem = () => this.state.selectedItem || this.state.currentDir
-
-  changeDir = (dir) => {
-    this.setState({
-      currentDir: dir,
-      currentPath: dir.path,
-    });
+  onItemClickedInContent = async (node) => {
+    if (node && node.isCurrentItem()) {
+      if (node.meta.listable) this.changeCurrentDir(node);
+    } else {
+      this.state.tree.currentItem = node;
+    }
+    this.setState({});
   }
 
-  setSelectedItem = (item) => this.setState({selectedItem: item})
+  onNodeToggledInNav = () => {
+    this.setState({});
+  }
+
+  changeCurrentDir = (node) => {
+    this.state.tree.setCurrentDir(node);
+    this.props.history.push(node.meta.path);
+  }
 }
 
-Explorer.propTypes = {
-  rootPath: PropTypes.string,
-  activePath: PropTypes.string,
-}
+Explorer = withRouter(Explorer);
+
+export default Explorer;
