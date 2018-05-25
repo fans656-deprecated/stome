@@ -11,3 +11,12 @@ export async function fetchDir(path, depth) {
   const data = await res.json();
   return data;
 }
+
+export async function fetchJSON(method, path, data) {
+  let url = conf.api_origin + path;
+  if (method === 'GET') {
+    url += '?' + qs.stringify(data);
+  }
+  const res = await fetch(url);
+  return await res.json();
+}

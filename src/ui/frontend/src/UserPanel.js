@@ -2,7 +2,7 @@ import React from 'react';
 import IconSettings from 'react-icons/lib/md/settings';
 
 import UserSettings from './UserSettings';
-import Dialog from './dialog';
+import Dialog from './Dialog';
 
 export default class UserPanel extends React.Component {
   render() {

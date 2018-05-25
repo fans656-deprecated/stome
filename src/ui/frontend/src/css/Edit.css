@@ -1,0 +1,9 @@
+.edit-label {
+  display: inline-block;
+  width: 6em;
+}
+
+.edit {
+  display: inline-block;
+  min-width: 3em;
+}

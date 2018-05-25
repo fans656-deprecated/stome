@@ -15,6 +15,9 @@ from store import *
 import store
 
 
+origin = 'http://localhost:{}'.format(conf.port)
+
+
 def upload_file():
     class Stream(object):
 
@@ -44,8 +47,21 @@ def upload_file():
     print content
 
 
-upload_file()
+def list_dir():
+    r = requests.get(origin + '?depth=2')
+    print json.dumps(r.json(), indent=2)
 
-#origin = 'http://localhost:{}'.format(conf.port)
-#r = requests.get(origin + '?depth=2')
-#print json.dumps(r.json(), indent=2)
+
+def get_storage_templates():
+    r = requests.get(origin + '?storage-templates')
+    print json.dumps(r.json(), indent=2)
+
+
+def get_storages():
+    r = requests.get(origin + '?storage')
+    print json.dumps(r.json(), indent=2)
+
+
+#get_storages()
+
+print dir(getdb())

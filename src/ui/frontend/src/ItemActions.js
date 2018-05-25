@@ -1,5 +1,4 @@
 import React from 'react';
-import showDialog from './dialog';
 import ManageStorage from './ManageStorage';
 
 export default class ItemActions extends React.Component {
@@ -12,8 +11,5 @@ export default class ItemActions extends React.Component {
   }
 
   onStorageClicked = () => {
-    showDialog(
-      <ManageStorage item={this.props.item}/>
-    );
   }
 }

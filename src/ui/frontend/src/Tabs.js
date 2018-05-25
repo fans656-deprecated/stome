@@ -11,13 +11,24 @@ export class Tabs extends React.Component {
   }
 
   render() {
-    const tabs = this.props.children;
+    let tabs = this.props.children;
+    if (!(tabs instanceof Array)) tabs = [tabs];
+    const labelPosition = this.props.direction || 'top';
+    let horz = true;
+    if (labelPosition === 'left' || labelPosition === 'right') {
+      horz = false;
+    }
+    const directionClass = horz ? 'horz' : 'vert';
+    const labelsPosClass = labelPosition;
+    const rootClasses = ['tabs', directionClass, labelsPosClass];
+    const labelsClasses = ['tab-labels', directionClass, labelsPosClass];
     return (
-      <div className="tabs">
-        <ul className="tab-labels">
+      <div className={rootClasses.join(' ')}>
+        <ul className={labelsClasses.join(' ')}>
           {
             tabs.map((tab, i) => (
               <TabLabel
+                key={i}
                 tab={tab}
                 index={i}
                 active={i === this.state.currentTabIndex}
@@ -33,8 +44,11 @@ export class Tabs extends React.Component {
     );
   }
 
+  index = () => {
+    return this.state.currentTabIndex;
+  }
+
   onTabClicked = (index) => {
-    console.log(index);
     this.setState({currentTabIndex: index});
   }
 }
@@ -60,7 +74,7 @@ class TabLabel extends React.Component {
       <li className={classes.join(' ')}
         onClick={this.props.onClick}
       >
-        {tab.props.label}
+        {tab.props.name}
       </li>
     );
   }

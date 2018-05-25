@@ -10,6 +10,7 @@ import conf
 import util
 import store
 import fsutil
+from errors import *
 from user import User
 from node import get_node, get_existed_node, get_file_node, get_dir_node
 
@@ -58,6 +59,14 @@ def get_path(path=''):
 
         GET /?storage-templates
 
+    + Get storage instances
+
+        GET /?storage
+
+    + Get storage instance by name
+
+        GET /?storage=vps
+
     + Query API page
 
         GET /?api=true
@@ -72,6 +81,15 @@ def get_path(path=''):
         return node.get_meta(visitor)
     elif 'storage-templates' in request.args:
         return {'templates': store.storage.get_templates()}
+    elif 'storage' in request.args:
+        name = request.args.get('storage')
+        if name:
+            storage = store.storage.get_storage(name)
+            if not storage:
+                raise NotFound(name)
+            return storage
+        else:
+            return {'storages': store.storage.get_storages()}
     elif node.is_dir:
         depth = int(request.args.get('depth', 1))
         return node.list(visitor, depth)

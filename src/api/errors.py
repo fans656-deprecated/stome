@@ -15,3 +15,8 @@ class CantRead(OperationError): pass
 class CantWrite(OperationError): pass
 class CantCreate(OperationError): pass
 class CantRemove(OperationError): pass
+
+class NotFound(OperationError):
+
+    def __init__(self, name):
+        super(NotFound, self).__init__(name, 404)

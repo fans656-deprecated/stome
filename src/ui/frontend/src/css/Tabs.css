@@ -1,29 +1,123 @@
 .tabs {
   display: flex;
-  border: 1px solid black;
-  margin: 1em;
 }
 
-.tabs .tab-labels {
+.tabs.horz {
+  flex-direction: row;
+}
+
+.tabs.horz {
+  flex-direction: column;
+}
+
+.tabs.right {
+  flex-direction: row;
+}
+
+.tabs.horz {
+  flex-direction: column;
+}
+
+.tab-labels {
+  display: flex;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.tabs .tab-label {
-  padding: 1em;
+.tab-labels.top {
+  margin-bottom: 1em;
+}
+
+.tab-labels.bottom {
+  margin-top: 1em;
+}
+
+.tab-labels.left {
+  margin-right: 1em;
+}
+
+.tab-labels.right {
+  margin-left: 1em;
+}
+
+.tabs.right .tab-labels {
+  order: 999;
+}
+
+.tabs.bottom .tab-labels {
+  order: 999;
+}
+
+.tab-labels.horz {
+  flex-direction: row;
+}
+
+.tab-labels.vert {
+  flex-direction: column;
+  text-align: center;
+}
+
+.tab-labels.top {
+  border-bottom: 1px solid var(--spacer-color);
+}
+
+.tab-labels.bottom {
+  border-top: 1px solid var(--spacer-color);
+}
+
+.tab-labels.left {
   border-right: 1px solid var(--spacer-color);
+}
+
+.tab-labels.right {
+  border-left: 1px solid var(--spacer-color);
+}
+
+.tabs .tab-label {
+  padding: .8em;
 }
 
 .tabs .tab-label:hover {
   cursor: pointer;
 }
 
-.tabs .tab-label.active {
+.tab-label.active {
   color: steelblue;
+}
+
+.tab-labels.top .tab-label {
+  border-bottom: 2px solid rgba(0,0,0,0);
+}
+
+.tab-labels.top .tab-label.active {
+  border-bottom: 2px solid steelblue;
+}
+
+.tab-labels.bottom .tab-label {
+  border-top: 2px solid rgba(0,0,0,0);
+}
+
+.tab-labels.bottom .tab-label.active {
+  border-top: 2px solid steelblue;
+}
+
+.tab-labels.left .tab-label {
+  border-right: 2px solid rgba(0,0,0,0);
+}
+
+.tab-labels.left .tab-label.active {
   border-right: 2px solid steelblue;
 }
 
+.tab-labels.right .tab-label {
+  border-left: 2px solid rgba(0,0,0,0);
+}
+
+.tab-labels.right .tab-label.active {
+  border-left: 2px solid steelblue;
+}
+
 .tabs .tab-content {
-  margin-left: 1em;
+  flex-grow: 1;
 }

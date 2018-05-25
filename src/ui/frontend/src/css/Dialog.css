@@ -2,7 +2,7 @@
   filter: blur(4px);
 }
 
-.dialog {
+.dialog, .dialog-backdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -13,9 +13,14 @@
   align-items: center;
 }
 
+.dialog-backdrop {
+  background: rgba(0,0,0, .4);
+  z-index: -999;
+}
+
 .dialog-ui {
   border: 1px solid var(--fg-color);
-  min-width: 20vw;
+  min-width: 30vw;
   min-height: 20vh;
   background: var(--bg-color);
   display: flex;
@@ -30,10 +35,11 @@
 .dialog-buttons {
   display: flex;
   justify-content: flex-end;
-  padding: 1.5em;
+  padding: 0 1.5em 1.5em 0;
 }
 
 .dialog-buttons button {
-  margin: 0 .4em;
+  margin: 0 1em;
+  margin-right: 0;
   border: 1px solid var(--fg-color);
 }

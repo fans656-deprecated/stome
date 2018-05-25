@@ -1,17 +1,18 @@
 import React from 'react';
 
 import {Tabs, Tab} from './Tabs';
+import StorageSettings from './StorageSettings';
 
 export default class UserSettings extends React.Component {
   render() {
     return (
       <div className="user-settings">
         <Tabs>
-          <Tab>
-            <h1>Storage</h1>
+          <Tab name="Storage">
+            <StorageSettings/>
           </Tab>
-          <Tab>
-            <h1>Other</h1>
+          <Tab name="Other">
+            <p>Other</p>
           </Tab>
         </Tabs>
       </div>
