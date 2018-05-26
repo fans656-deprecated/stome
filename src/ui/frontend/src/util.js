@@ -2,21 +2,26 @@ import qs from 'query-string';
 
 import conf from './conf';
 
-export async function fetchDir(path, depth) {
-  //await new Promise((resolve) => setTimeout(resolve, 200));
-  const args = qs.stringify({
-    depth: depth || 1,
-  });
-  const res = await fetch(conf.api_origin + path + '?' + args);
+export async function fetchDir(path) {
+  const params = qs.stringify({depth: 1});
+  const res = await fetch(conf.api_origin + path + '?' + params);
   const data = await res.json();
   return data;
 }
 
 export async function fetchJSON(method, path, data) {
   let url = conf.api_origin + path;
-  if (method === 'GET') {
+  const headers = new Headers();
+  headers.append('Content-Type', 'application/json');
+  const options = {
+    method: method,
+    headers: headers,
+  };
+  if (method === 'GET' || method === 'DELETE') {
     url += '?' + qs.stringify(data);
+  } else {
+    options.body = JSON.stringify(data);
   }
-  const res = await fetch(url);
+  const res = await fetch(url, options);
   return await res.json();
 }

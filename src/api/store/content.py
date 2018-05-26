@@ -13,13 +13,13 @@ class Content(object):
             self.meta = meta
             if meta['md5'] != md5:
                 self._update_meta({'md5': md5})
-            self.exist = True
+            self.exists = True
         else:
             self.meta = {
                 'id': id,
                 'md5': md5,
             }
-            self.exist = False
+            self.exists = False
 
     @property
     def id(self):
@@ -50,8 +50,6 @@ class Content(object):
         self._update_meta({'unreceived': list(new_unreceived)})
 
     def create(self, size):
-        if not size:
-            raise RuntimeError()
         self.meta.update({
             'status': 'init',
             'size': size,

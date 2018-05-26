@@ -3,6 +3,7 @@ import React from 'react';
 import {Tabs, Tab} from './Tabs';
 import { fetchJSON } from './util';
 import Edit from './Edit';
+import './css/StorageSettings.css';
 
 export default class StorageSettings extends React.Component {
   state = {
@@ -16,26 +17,34 @@ export default class StorageSettings extends React.Component {
 
   populate = async () => {
     const {templates} = await fetchJSON('GET', '/', {
-      'storage-templates': true
+      'storage-templates': true,
     });
-    this.setState({templates: templates});
+    const {storages} = await fetchJSON('GET', '/', {
+      'storages': true,
+    });
+    this.setState({
+      templates: templates,
+      storages: storages,
+    });
   }
 
   render() {
-    const tabs = this.state.storages.map((i, storage) => (
-      <Tab name="foo" key={i}>
-        <Storage storage={storage}/>
+    const tabs = this.state.storages.map((storage, i) => (
+      <Tab name={storage.name} key={i}>
+        <Storage storage={storage}
+          onChange={this.populate}
+        />
       </Tab>
     ));
     tabs.push((
-      <Tab name="+" key="new">
+      <Tab name="New" key="new">
         <NewStorage templates={this.state.templates}
           onChange={this.populate}
         />
       </Tab>
     ));
     return (
-      <div style={{minWidth: '40em', minHeight: '20em'}}>
+      <div className="storage-settings">
         <Tabs direction="left">
           {tabs}
         </Tabs>
@@ -46,7 +55,33 @@ export default class StorageSettings extends React.Component {
 
 class Storage extends React.Component {
   render() {
-    return <p>storage instance</p>
+    const storage = this.props.storage;
+    const EditComponent = getEditStorageComponent(storage);
+    return (
+      <div>
+        <EditComponent storage={storage}
+          ref={ref => this.edit = ref}
+        />
+        <div className="storage-buttons">
+          <button onClick={this.saveStorage}>Save</button>
+          <button onClick={this.deleteStorage}>Delete</button>
+        </div>
+      </div>
+    );
+  }
+
+  saveStorage = async () => {
+    const storage = this.props.storage;
+    await fetchJSON('PUT', '/?storage', storage);
+    this.props.onChange();
+  }
+
+  deleteStorage = async () => {
+    const id = this.props.storage.id;
+    await fetchJSON('DELETE', `/${id}`, {
+      storage: true,
+    });
+    this.props.onChange();
   }
 }
 
@@ -56,21 +91,14 @@ class NewStorage extends React.Component {
   render() {
     const tabs = this.props.templates.map((template, i) => {
       template = Object.assign({}, template);
-      let EditComponent = EditStorage;
-      if (template.type === 'local') {
-        EditComponent = EditStorageLocal;
-      } else {
-        EditComponent = EditStorageQiniu;
-      }
+      const EditComponent = getEditStorageComponent(template);
       return (
         <Tab name={template.type} key={template.type}>
-          <div>
-            <EditComponent storage={template}
-              ref={ref => this.edits[i] = ref}
-            />
-          </div>
+          <EditComponent storage={template}
+            ref={ref => this.edits[i] = ref}
+          />
           <div style={{marginTop: '1em'}}>
-            <button onClick={this.addStorage}>Create</button>
+            <button onClick={this.createStorage}>Create</button>
           </div>
         </Tab>
       );
@@ -82,10 +110,12 @@ class NewStorage extends React.Component {
     );
   }
 
-  addStorage = () => {
+  createStorage = async () => {
     const tabIndex = this.tabs.index();
     const storageEdit = this.edits[tabIndex];
-    console.log(storageEdit.getStorage());
+    const storage = storageEdit.getStorage();
+    await fetchJSON('PUT', '/?storage', storage);
+    this.props.onChange();
   }
 }
 
@@ -97,21 +127,30 @@ class EditStorage extends React.Component {
     };
   }
 
+  componentWillReceiveProps(props) {
+    this.setState({storage: props.storage});
+  }
+
   render() {
     const storage = this.state.storage;
     let fields = this.fields || this.makeFields(storage);
     return (
       <div>
-        {
-          fields.map(({name, key}) => (
-            <Edit
-              key={key}
-              name={name}
-              value={storage[key]}
-              onChange={val => {storage[key] = val; this.setState({})}}
-            />
-          ))
-        }
+        <div>
+          {
+            fields.map(({name, key}) => (
+              <Edit
+                key={key}
+                name={name}
+                value={storage[key]}
+                onChange={val => {storage[key] = val; this.setState({})}}
+              />
+            ))
+          }
+        </div>
+        <div>
+          <pre>{JSON.stringify(storage, null, 2)}</pre>
+        </div>
       </div>
     );
   }
@@ -144,4 +183,16 @@ class EditStorageQiniu extends EditStorage {
     {name: 'Access Key', key: 'access-key'},
     {name: 'Secret Key', key: 'secret-key'},
   ]
+}
+
+function getEditStorageComponent(storage) {
+  let component = EditStorage;
+  if (storage.type === 'local') {
+    component = EditStorageLocal;
+  } else if (storage.type === 'qiniu') {
+    component = EditStorageQiniu;
+  } else {
+    component = EditStorage;
+  }
+  return component;
 }

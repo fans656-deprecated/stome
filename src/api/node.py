@@ -4,12 +4,13 @@ from collections import OrderedDict
 
 import util
 from db import getdb
+from user import User
 from errors import *
 
 
 def get_existed_node(path):
     node = get_node(path)
-    if not node.exist:
+    if not node.exists:
         raise NotFound
     return node
 
@@ -26,7 +27,7 @@ def get_file_node(path):
 
 def get_dir_node(path):
     node = get_node(path)
-    if node.exist and not node.is_dir:
+    if node.exists and not node.is_dir:
         raise NotDir(node)
     node.type = 'dir'
     return node
@@ -39,13 +40,13 @@ class Node(object):
             meta = getdb().node.find_one({'path': path}, {'_id': False})
         if meta:
             self.meta = meta
-            self.exist = True
+            self.exists = True
         else:
             self.meta = {
                 'name': os.path.basename(path),
                 'parent': get_parent_path(path),
             }
-            self.exist = False
+            self.exists = False
         self.meta['path'] = path
 
     @property
@@ -67,6 +68,10 @@ class Node(object):
     @property
     def is_dir(self):
         return self.type == 'dir'
+
+    @property
+    def is_root(self):
+        return self.path == '/'
 
     @property
     def is_file(self):
@@ -91,6 +96,10 @@ class Node(object):
     @property
     def size(self):
         return self.meta['size']
+
+    @size.setter
+    def size(self, size):
+        self._serialize({'size': size})
 
     @property
     def owner_readable(self):
@@ -123,19 +132,25 @@ class Node(object):
 
     @property
     def as_ls_entry(self):
-        r = dict(self.meta)
-        r.update({
+        meta = self._get_meta()
+        meta.update({
             'listable': self.is_dir,
         })
-        return r
+        return meta
 
-    def create(self, user, meta=None):
-        if self.exist:
+    @property
+    def storages(self):
+        return self.meta.get('storages') or self.parent.storages
+
+    def create(self, user, meta=None, size=0, md5=None):
+        if self.exists:
             raise Existed(self)
         parent = self.parent
-        if not parent.exist:
+        if not parent:
             self.parent.create(user, meta)
-        return self._create(user, meta)
+        if not user.can_create(self):
+            raise CantCreate(self)
+        return self._create(user, meta, size, md5)
 
     def list(self, user, depth):
         if not user.can_read(self):
@@ -152,11 +167,11 @@ class Node(object):
         return self.update_meta(operator, {'access': mod})
 
     def get_meta(self, user):
-        if not self.exist:
+        if not self.exists:
             raise NotFound(self)
         if not user.can_read(self):
             raise CantRead(self)
-        return self.meta
+        return self._get_meta()
 
     def update_meta(self, operator, meta, silent=False):
         if not meta:
@@ -175,9 +190,9 @@ class Node(object):
 
     def clone(self, user, src, silent=False):
         try:
-            if self.exist:
+            if self.exists:
                 raise AlreadyExist(dst)
-            if not src.exist:
+            if not src.exists:
                 raise NotFound(src)
             if not user.can_write(dst.parent):
                 raise CantWrite(dst)
@@ -193,7 +208,7 @@ class Node(object):
             return False
 
     def remove(self, operator, recursive=False, silent=False):
-        if not self.exist:
+        if not self.exists:
             if silent:
                 return
             else:
@@ -221,10 +236,27 @@ class Node(object):
             raise CantRead(self)
         return 'todo'
 
+    def _inc_ancestor_size(self, size):
+        if self.size:
+            self.parent._inc_size(size)
+
+    def _inc_size(self, size):
+        self.size += size
+        parent = self.parent
+        if not parent.is_root:
+            parent._inc_size(size)
+
+    def _get_meta(self):
+        meta = dict(self.meta)
+        meta.update({
+            'storages': self.storages,
+        })
+        return meta
+
     def _remove(self):
         getdb().node.remove({'path': self.path})
 
-    def _create(self, user, meta=None):
+    def _create(self, user, meta=None, size=0, md5=None):
         username = user.username
         now = util.utc_now_str()
         self.meta.update({
@@ -232,27 +264,29 @@ class Node(object):
             'group': username,
             'ctime': now,
             'mtime': now,
-            'size': 0,
-            'storages': [],
+            'size': size,
         })
         if self.is_dir:
             self.meta.update({
                 'access': 0775,
             })
-        else:
+        elif self.is_file:
             self.meta.update({
                 'access': 0664,
+                'md5': md5,
             })
         self.meta.update(meta or {})
-        if not user.can_create(self):
-            raise CantCreate(self)
-        self.exist = True
+        self._inc_ancestor_size(size)
+        self.exists = True
         self._serialize(update=self.meta, upsert=True)
         return self
 
     def _serialize(self, update=None, upsert=False):
         self.meta.update(update or {})
         getdb().node.update({'path': self.path}, self.meta, upsert=upsert)
+
+    def __nonzero__(self):
+        return self.exists
 
     def __repr__(self):
         return repr(self.meta)
@@ -297,7 +331,7 @@ def list_directory(node, depth):
         if child.is_dir:
             dirs.append(get_list_result(child, depth - 1))
         elif child.is_file:
-            files.append(get_list_result(child.as_ls_entry, depth - 1))
+            files.append(child.as_ls_entry)
     res = node.as_ls_entry
     res.update({
         'dirs': dirs,
@@ -311,22 +345,3 @@ def get_list_result(node, depth):
         return list_directory(node, depth)
     else:
         return node.as_ls_entry
-
-
-if __name__ == '__main__':
-    print get_parent_path('/')
-    print get_parent_path('/foo')
-    print get_parent_path('/foo/bar')
-    exit()
-
-    getdb().node.remove({})
-
-    user_root = {'username': 'root'}
-    user_owner = {'username': 'foo'}
-    user_group = {'username': 'bar', 'groups': ['foo']}
-    user_other = {'username': 'baz'}
-
-    root = Node('/')
-    home = Node('/home/' + user_owner['username'])
-
-    print home.writable_by(user_group)

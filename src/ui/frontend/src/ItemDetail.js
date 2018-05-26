@@ -2,16 +2,18 @@ import React from 'react';
 
 export default class Detail extends React.Component {
   render() {
-    const item = this.props.item;
+    const node = this.props.node;
+    const meta = node.meta;
     let detail = [];
     detail = detail.concat([
-      ['Name', item.name],
-      ['Path', item.path],
-      ['Owner', item.owner],
-      ['Group', item.group],
-      ['Access', accessToString(item.access)],
+      ['Name', meta.name],
+      ['Path', meta.path],
+      ['Owner', meta.owner],
+      ['Group', meta.group],
+      ['Access', accessToString(meta.access)],
+      ['Size', meta.size],
     ]);
-    if (item.type === 'file') {
+    if (meta.type === 'file') {
     }
     return (
       <div className="item-detail">

@@ -31,20 +31,14 @@ def upload_file():
             self.i = i + n
             return r
 
-    getdb().content.remove()
-
-    id = 'foo'
     data = 'hello world you'
     md5 = util.calc_md5(data)
-    print md5
 
-    content = get_content(id)
-
-    content.create(len(data))
-    print content
-
-    content.write(Stream(data), 0, md5)
-    print content
+    r = requests.put(origin + '/t.txt', params={
+        'md5': md5,
+        'size': len(data),
+    })
+    #print r.text
 
 
 def list_dir():
@@ -62,6 +56,13 @@ def get_storages():
     print json.dumps(r.json(), indent=2)
 
 
-#get_storages()
+def put_storage(storage):
+    r = requests.put(origin + '?storage', json=storage)
+    return json.dumps(r.json(), indent=2)
 
-print dir(getdb())
+
+init()
+
+upload_file()
+
+print get_file_node('/t.txt')

@@ -7,6 +7,8 @@ export default class Content extends React.Component {
     return (
       <div className="content"
         onClick={() => this.props.onClick(null)}
+        onDragOver={ev => ev.preventDefault()}
+        onDrop={this.onDrop}
       >
         <Items
           dirs={this.props.dir.dirs}
@@ -16,5 +18,9 @@ export default class Content extends React.Component {
         />
       </div>
     );
+  }
+
+  onDrop = (ev) => {
+    console.log(ev);
   }
 }

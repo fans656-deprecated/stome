@@ -9,7 +9,11 @@ def calc_md5(data):
 
 
 def utc_now_str():
-    return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    return datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f UTC')
+
+
+def new_id():
+    return calc_md5(utc_now_str())
 
 
 def normalized_path(path):

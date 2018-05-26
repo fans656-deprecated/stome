@@ -1,0 +1,12 @@
+.storage-settings {
+  min-width: 40em;
+  min-height: 30em;
+}
+
+.storage-buttons button {
+  margin-right: 1em;
+}
+
+.storage-settings input {
+  width: 30em;
+}

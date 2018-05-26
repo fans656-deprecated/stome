@@ -8,16 +8,16 @@ export default class Items extends React.Component {
   render() {
     const dirs = this.props.dirs;
     const files = this.props.files;
-    const items = dirs.concat(files).map(item => {
+    const nodes = dirs.concat(files).map(node => {
       return (
-        <Item key={item.meta.path} item={item}
+        <Item key={node.meta.path} node={node}
           onClick={this.props.onClick}
         />
       );
     });
     return (
       <div className="items">
-        {items}
+        {nodes}
       </div>
     );
   }

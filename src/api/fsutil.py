@@ -5,11 +5,13 @@ from node import getdb, get_node, get_dir_node
 
 
 def initialized():
-    return get_node('/').exist
+    return get_node('/').exists
 
 
 def erase_everything():
     getdb().node.remove({})
+    getdb().content.remove({})
+    getdb().storage.remove({})
 
 
 def create_root_dir():

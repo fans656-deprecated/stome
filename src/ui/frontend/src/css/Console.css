@@ -1,0 +1,36 @@
+.console {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.console-icon {
+  position: absolute;
+  left: .5em;
+  top: .65em;
+  color: var(--spacer-color);
+}
+
+.console.focus .console-icon {
+  color: var(--fg-color);
+}
+
+.console input {
+  background: var(--bg-color);
+  color: var(--spacer-color);
+  height: 1.7em;
+  transition: .2s;
+  flex-grow: 1;
+  outline: none;
+  margin: 0;
+  padding: .4em 0 .2em 0;
+  text-indent: 2.2em;
+}
+
+.console.focus input {
+  color: var(--fg-color);
+}
+
+.console input:focus {
+  background: #2A2E35;
+}

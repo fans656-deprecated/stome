@@ -23,10 +23,11 @@ def guarded(viewfunc):
     def decorated_viewfunc(*args, **kwargs):
         try:
             r = viewfunc(*args, **kwargs)
-            return json.dumps(r) if r else 'ok'
+            return json.dumps(r or {'errno': 0})
         except Exception as e:
-            traceback.print_exc()
-            return str(e), e.errno
+            exc = traceback.format_exc()
+            print exc
+            return exc, e.errno if hasattr(e, 'errno') else 400
     return decorated_viewfunc
 
 
@@ -61,7 +62,7 @@ def get_path(path=''):
 
     + Get storage instances
 
-        GET /?storage
+        GET /?storages
 
     + Get storage instance by name
 
@@ -88,8 +89,8 @@ def get_path(path=''):
             if not storage:
                 raise NotFound(name)
             return storage
-        else:
-            return {'storages': store.storage.get_storages()}
+    elif 'storages' in request.args:
+        return {'storages': store.storage.get_storages()}
     elif node.is_dir:
         depth = int(request.args.get('depth', 1))
         return node.list(visitor, depth)
@@ -97,9 +98,10 @@ def get_path(path=''):
         return make_content_stream(node)
 
 
+@app.route('/', methods=['PUT'])
 @app.route('/<path:path>', methods=['PUT'])
 @guarded
-def put_path(path):
+def put_path(path='/'):
     """
     + Upload file
 
@@ -108,9 +110,10 @@ def put_path(path):
 
         Parameters:
 
-            md5: full md5
-            chunk-md5: chunk md5
-            chunk-offset: chunk byte offset in file
+            md5: (required) full md5
+            size: (required) total file size
+            chunk-md5: (optional) chunk md5
+            chunk-offset: (optional) chunk byte offset in file
 
     + Create directory
 
@@ -123,32 +126,27 @@ def put_path(path):
             "access": 0600,
             "size": 13267,
         }
-
-    + Create/Update storage
-
-        PUT /?storage
-        {
-            'type': 'local',
-            'name': 'vultr-vps',
-            'root': '~/.stome-files',
-            'userable-groups': [
-                'storage-local',
-            ]
-        }
     """
     visitor = get_visitor()
     if 'storage' in request.args:
-        return
+        meta = request.json
+        storage = store.storage.get_storage(meta.get('id'))
+        storage.update(meta)
+        return storage.meta
     if path.endswith('/'):
         node = get_dir_node(path)
+        size = 0
+        md5 = None
     else:
         node = get_file_node(path)
-    if not node.exist:
-        node.create(visitor)
-    if 'meta' in request.args:
-        return node.update_meta(visitor, request.json)
-    else:
-        return handle_upload(visitor, node)
+        size = get_content_size()
+        md5 = request.args['md5']
+    if not node:
+        node.create(visitor, size=size, md5=md5)
+    #if 'meta' in request.args:
+    #    return node.update_meta(visitor, request.json)._get_meta()
+    #else:
+    #    return handle_upload(node, size, md5)
 
 
 @app.route('/<path:path>', methods=['POST'])
@@ -187,14 +185,25 @@ def post_path(path):
 
 
 @app.route('/<path:path>', methods=['DELETE'])
+@guarded
 def delete_path(path):
     """
     Delete file/directory
 
         DELETE /img
         DELETE /img/girl.jpg
+
+    Delete storage
+
+        DELETE /20180402_231528_2039_UTC?storage
     """
-    get_existed_node(path).remove(get_visitor(), recursive=True)
+    if 'storage' in request.args:
+        storage = store.storage.get_storage(path)
+        if not storage.exist:
+            raise NotFound(path)
+        storage.delete()
+    else:
+        get_existed_node(path).remove(get_visitor(), recursive=True)
 
 
 @app.after_request
@@ -202,6 +211,7 @@ def after_request(r):
     r.headers['Cache-Control'] = 'no-cache'
     r.headers['Access-Control-Allow-Origin'] = '*'
     r.headers['Access-Control-Allow-Methods'] = '*'
+    r.headers['Access-Control-Allow-Headers'] = '*'
     return r
 
 
@@ -213,6 +223,8 @@ def get_visitor():
             fsutil.create_home_dir_for(user)
     except Exception as e:
         user = {'username': 'guest'}
+        # DEBUG
+        user = {'username': 'root'}
     return User(user)
 
 
@@ -230,20 +242,13 @@ def is_simple_upload():
     return 'pos' not in request.args
 
 
-def handle_upload(visitor, node):
-    md5 = request.args.get('md5')
-    if md5:
-        content = store.get_content(id=md5, md5=md5)
-    else:
-        md5 = util.calc_md5(visitor.username + node.path)
-        content = store.get_content(id=md5)
-    size = request.args.get('size')
-    if not content.exist or size != content.size:
-        if size is None and 'offset' not in request.args:
-            size = request.headers['content-length']
-        content.create(size or node.size)
-    node.update_meta(visitor, {'md5': md5})
+def get_content_size():
+    size = request.args.get('size', 0) or request.headers['content-length']
+    return int(size)
 
+
+def handle_upload(node, size, md5):
+    content = node.content
     failed_bytes_range = content.write(
         request.stream,
         offset=request.args.get('offset', 0),

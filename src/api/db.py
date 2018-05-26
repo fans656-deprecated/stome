@@ -14,7 +14,3 @@ def getdb(g={}):
 
 if __name__ == '__main__':
     db = getdb()
-    print db.collection_names()
-    #print next(db.node.find({}))
-    #print next(db.file.find({}))
-    print next(db.content.find({}))

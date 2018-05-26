@@ -1,6 +1,7 @@
 import fsutil
-from node import get_node, get_dir_node, get_file_node
+import store
 from user import User
+from node import get_node, get_dir_node, get_file_node
 
 
 root_user = User({'username': 'root'})
@@ -9,12 +10,29 @@ user2 = User({'username': 'tyn', 'groups': ['f6']})
 guest_user = User({'username': ''})
 
 
-fsutil.erase_everything()
-root_dir = fsutil.create_root_dir()
+def init_storages():
+    templates = store.storage.get_templates()
+    storages = []
+    for template in templates:
+        storage = store.storage.get_storage(None)
+        storage.update(template)
+        storages.append(storage)
+    return storages
 
-home1 = fsutil.create_home_dir_for(user1)
-home2 = fsutil.create_home_dir_for(user2)
 
-fsutil.create_dir(user1, 'img/girl')
+def init():
+    fsutil.erase_everything()
 
-public_dir = fsutil.create_public_dir('/public')
+    storages = init_storages()
+
+    root_dir = fsutil.create_root_dir()
+    root_dir.update_meta(root_user, {
+        'storages': [s.meta['id'] for s in storages],
+    })
+
+    home1 = fsutil.create_home_dir_for(user1)
+    home2 = fsutil.create_home_dir_for(user2)
+
+    fsutil.create_dir(user1, 'img/girl')
+
+    public_dir = fsutil.create_public_dir('/public')

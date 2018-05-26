@@ -1,21 +1,18 @@
 import { fetchDir } from './util';
 
 export default async function getTree(path) {
-  const tree = new Tree(await getRootByPath(path));
-  Node.tree = tree;
+  const tree = new Tree();
+  const meta = await fetchDir(path);
+  const root = new Node(meta, null, tree);
+  tree.root = root;
   return tree;
 }
 
-async function getRootByPath(path) {
-  const meta = await fetchDir(path);
-  const node = new Node(meta);
-  return node;
-}
-
 class Node {
-  constructor(meta, parent) {
+  constructor(meta, parent, tree) {
     this.meta = meta;
-    this.parent = parent || null;
+    this.parent = parent;
+    this.tree = tree;
   }
 
   hasSubDirs = () => {
@@ -23,11 +20,11 @@ class Node {
   }
 
   isCurrentDir = () => {
-    return this === Node.tree.currentDir;
+    return this === this.tree.currentDir;
   }
 
   isCurrentItem = () => {
-    return this === Node.tree.currentItem;
+    return this === this.tree.currentItem;
   }
 
   toggle = async (toggled) => {
@@ -43,9 +40,18 @@ class Node {
   loadChildren = async () => {
     const meta = this.meta;
     if (meta.listable && !this.children) {
-      this.dirs = await this._loadChildren(meta.dirs);
-      this.files = await this._loadChildren(meta.files);
+      this.dirs = await this._loadSubdirs(meta.dirs);
+      this.files = meta.files.map(meta => new Node(meta, this, this.tree));
       this.children = this.dirs.concat(this.files);
+    }
+  }
+
+  update = async (recursive) => {
+    this.meta = await fetchDir(this.meta.path);
+    if (recursive && this.children) {
+      for (let child of this.children) {
+        await child.update(recursive)
+      }
     }
   }
 
@@ -64,19 +70,19 @@ class Node {
     return ret;
   }
 
-  _loadChildren = async (metas) => {
+  _loadSubdirs = async (metas) => {
     return await Promise.all(
       metas.map(async (meta) => {
         meta = await fetchDir(meta.path);
-        return await new Node(meta, this);
+        return await new Node(meta, this, this.tree);
       })
     );
   }
 }
 
 class Tree {
-  constructor(root) {
-    this.root = root;
+  constructor() {
+    this.root = null;
     this.currentDir = null;
     this.currentItem = null;
   }

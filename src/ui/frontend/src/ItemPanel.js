@@ -5,15 +5,15 @@ import ItemActions from './ItemActions';
 
 export default class ItemPanel extends React.Component {
   render() {
-    const item = this.props.item;
-    if (!item) {
+    const node = this.props.node;
+    if (!node) {
       return null;
     }
     return (
       <div className="item-panel vertical">
-        <ItemDetail item={this.props.item.meta}/>
+        <ItemDetail node={this.props.node}/>
         <div className="bottom" style={{background: '#555'}}>
-          <ItemActions item={this.props.item.meta}/>
+          <ItemActions node={this.props.node}/>
         </div>
       </div>
     );

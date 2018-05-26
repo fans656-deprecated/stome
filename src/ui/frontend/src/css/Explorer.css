@@ -8,7 +8,21 @@
   border-bottom: 1px solid var(--spacer-color);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
+}
+
+.explorer header .child {
+  flex-basis: 50%;
+  flex-grow: 1;
+}
+
+.explorer header .left {
+  display: flex;
+}
+
+.explorer header .right {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .explorer main {
@@ -16,7 +30,16 @@
 }
 
 .explorer footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-top: 1px solid var(--spacer-color);
+  height: 1.8em;
+}
+
+.explorer .child {
+  flex-basis: 50%;
+  flex-grow: 1;
 }
 
 .nav {
@@ -26,7 +49,8 @@
 }
 
 .content {
-  padding: 1em;
   width: 100%;
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }

@@ -65,3 +65,7 @@ input {
 input.long {
   min-width: 20em;
 }
+
+pre, input {
+  font-family: Consolas;
+}

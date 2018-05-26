@@ -3,7 +3,7 @@ import IconDown from 'react-icons/lib/fa/angle-down';
 import IconRight from 'react-icons/lib/fa/angle-right';
 //import { ClipLoader as Spinner } from 'react-spinners';
 
-import './css/Tree.css';
+import './css/Nav.css';
 
 export default class Tree extends React.Component {
   render() {
@@ -25,7 +25,7 @@ export default class Tree extends React.Component {
     nodes.push(
       <div className={classes.join(' ')}
         key={ith + '-' + depth}
-        style={{paddingLeft: depth + 'em'}}
+        style={{paddingLeft: (depth * 1.3) + 'em'}}
         onClick={() => this.props.onNodeClicked(root)}
         onMouseDown={(ev) => ev.preventDefault()}
       >

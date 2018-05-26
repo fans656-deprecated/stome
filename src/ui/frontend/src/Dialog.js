@@ -4,7 +4,7 @@ import './css/Dialog.css';
 
 export default class Dialog extends React.Component {
   state = {
-    showing: true,
+    showing: false,
   }
 
   render() {
