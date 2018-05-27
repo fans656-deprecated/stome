@@ -11,9 +11,13 @@ html, body, #root {
 }
 
 body {
-  font-size: .9em;
+  font-size: .85em;
   font-family: Consolas;
   background: var(--bg-color);
+  color: var(--fg-color);
+}
+
+#todo {
   color: var(--fg-color);
 }
 
@@ -29,6 +33,11 @@ body {
 
 .bottom {
   align-self: flex-start;
+}
+
+.left-right {
+  display: flex;
+  justify-content: space-between;
 }
 
 button {

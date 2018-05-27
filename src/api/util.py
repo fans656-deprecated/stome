@@ -34,3 +34,7 @@ def normalized_path(path):
     if not path.startswith('/'):
         path = '/' + path
     return path
+
+
+if __name__ == '__main__':
+    print new_id()

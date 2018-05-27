@@ -1,4 +1,5 @@
 import os
+import time
 import json
 from pprint import pprint
 from collections import OrderedDict
@@ -31,18 +32,17 @@ def upload_file():
             self.i = i + n
             return r
 
-    data = 'hello world you'
+    data = 'hello stome\n'
     md5 = util.calc_md5(data)
 
     r = requests.put(origin + '/t.txt', params={
         'md5': md5,
         'size': len(data),
-    })
-    #print r.text
+    }, data=data)
 
 
 def list_dir():
-    r = requests.get(origin + '?depth=2')
+    r = requests.get(origin + '?depth=1')
     print json.dumps(r.json(), indent=2)
 
 
@@ -63,6 +63,11 @@ def put_storage(storage):
 
 init()
 
-upload_file()
-
-print get_file_node('/t.txt')
+#upload_file()
+#
+#time.sleep(0.1)
+#node = get_node('/t.txt')
+#print node.content
+#print
+#for ins in node.content.instances:
+#    print ins

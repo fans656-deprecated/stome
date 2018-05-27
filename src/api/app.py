@@ -12,7 +12,13 @@ import store
 import fsutil
 from errors import *
 from user import User
-from node import get_node, get_existed_node, get_file_node, get_dir_node
+from node import (
+    get_node,
+    get_existed_node,
+    get_file_node,
+    get_dir_node,
+    get_dir_or_file_node,
+)
 
 
 app = Flask(__name__, template_folder='.')
@@ -23,12 +29,29 @@ def guarded(viewfunc):
     def decorated_viewfunc(*args, **kwargs):
         try:
             r = viewfunc(*args, **kwargs)
-            return json.dumps(r or {'errno': 0})
+            if isinstance(r, Response):
+                return r
+            else:
+                return json.dumps(r or {'errno': 0})
         except Exception as e:
             exc = traceback.format_exc()
             print exc
             return exc, e.errno if hasattr(e, 'errno') else 400
     return decorated_viewfunc
+
+
+@app.route('/', methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+@guarded
+def options_path(path=''):
+    return ''
+
+
+@app.route('/', methods=['HEAD'])
+@app.route('/<path:path>', methods=['HEAD'])
+@guarded
+def head_path(path=''):
+    get_existed_node(path)
 
 
 @app.route('/')
@@ -85,7 +108,7 @@ def get_path(path=''):
     elif 'storage' in request.args:
         name = request.args.get('storage')
         if name:
-            storage = store.storage.get_storage(name)
+            storage = store.get_storage(name)
             if not storage:
                 raise NotFound(name)
             return storage
@@ -95,7 +118,7 @@ def get_path(path=''):
         depth = int(request.args.get('depth', 1))
         return node.list(visitor, depth)
     elif node.is_file:
-        return make_content_stream(node)
+        return make_content_stream(visitor, node)
 
 
 @app.route('/', methods=['PUT'])
@@ -103,6 +126,27 @@ def get_path(path=''):
 @guarded
 def put_path(path='/'):
     """
+    + Create/Update storage
+
+        PUT /?storage
+        {
+            "type": "local",
+            "name": "vultr",
+            "root": "~/.stome-files"
+        }
+
+    + Modify file/directory metadata
+
+        PUT /img/girl.jpg?meta
+        {
+            "access": 0600,
+            "size": 13267,
+        }
+
+    + Create directory
+
+        PUT /img/
+
     + Upload file
 
         PUT /img/girl.jpg
@@ -114,39 +158,14 @@ def put_path(path='/'):
             size: (required) total file size
             chunk-md5: (optional) chunk md5
             chunk-offset: (optional) chunk byte offset in file
-
-    + Create directory
-
-        PUT /img/
-
-    + Modify file/directory metadata
-
-        PUT /img/girl.jpg?meta
-        {
-            "access": 0600,
-            "size": 13267,
-        }
     """
     visitor = get_visitor()
     if 'storage' in request.args:
-        meta = request.json
-        storage = store.storage.get_storage(meta.get('id'))
-        storage.update(meta)
-        return storage.meta
-    if path.endswith('/'):
-        node = get_dir_node(path)
-        size = 0
-        md5 = None
+        return handle_upsert_storage(visitor)
+    elif 'meta' in request.args:
+        return handle_update_node_meta(visitor, path)
     else:
-        node = get_file_node(path)
-        size = get_content_size()
-        md5 = request.args['md5']
-    if not node:
-        node.create(visitor, size=size, md5=md5)
-    #if 'meta' in request.args:
-    #    return node.update_meta(visitor, request.json)._get_meta()
-    #else:
-    #    return handle_upload(node, size, md5)
+        return handle_upsert_node(visitor, path)
 
 
 @app.route('/<path:path>', methods=['POST'])
@@ -198,7 +217,7 @@ def delete_path(path):
         DELETE /20180402_231528_2039_UTC?storage
     """
     if 'storage' in request.args:
-        storage = store.storage.get_storage(path)
+        storage = store.get_storage(path)
         if not storage.exist:
             raise NotFound(path)
         storage.delete()
@@ -213,6 +232,46 @@ def after_request(r):
     r.headers['Access-Control-Allow-Methods'] = '*'
     r.headers['Access-Control-Allow-Headers'] = '*'
     return r
+
+
+def handle_upsert_storage(visitor):
+    meta = request.json
+    storage = store.get_storage(meta.get('id'))
+    storage.update(meta)
+    return storage.meta
+
+
+def handle_update_node_meta(visitor, path):
+    node = get_existed_node(path)
+    node.update_meta(visitor, request.json)
+    return node.inherited_meta
+
+
+def handle_upsert_node(visitor, path):
+    node = get_dir_or_file_node(path)
+    if node.is_dir:
+        if not node.exists:
+            node.create(visitor)
+    elif node.is_file:
+        size = get_content_size()
+        md5 = request.args.get('md5')
+        if not node.exists:
+            mimetype = request.headers.get('content-type')
+            node.create(visitor, size=size, md5=md5, mimetype=mimetype)
+        handle_upload(node, size, md5)
+
+
+def handle_upload(node, size, md5):
+    content = node.content
+    failed_bytes_range = content.write(
+        request.stream,
+        offset=int(request.args.get('chunk-offset', 0)),
+        md5=request.args.get('chunk-md5')
+    )
+    if failed_bytes_range:
+        return json.dumps({
+            'failed': failed_bytes_range,
+        })
 
 
 def get_visitor():
@@ -234,8 +293,8 @@ def get_dst_node(src, to):
     return get_node(to)
 
 
-def make_content_stream(node):
-    return Response(node.iter_data(), mimetype=node.mimetype)
+def make_content_stream(visitor, node):
+    return Response(node.iter_content(visitor), mimetype=node.mimetype)
 
 
 def is_simple_upload():
@@ -245,25 +304,6 @@ def is_simple_upload():
 def get_content_size():
     size = request.args.get('size', 0) or request.headers['content-length']
     return int(size)
-
-
-def handle_upload(node, size, md5):
-    content = node.content
-    failed_bytes_range = content.write(
-        request.stream,
-        offset=request.args.get('offset', 0),
-        md5=request.args.get('chunk-md5')
-    )
-    if content.status == 'done':
-        node.update_meta({
-            'md5': content.md5,
-            'size': content.size,
-        })
-        content.ref += 1
-    if failed_bytes_range:
-        return json.dumps({
-            'failed': failed_bytes_range,
-        })
 
 
 if __name__ == '__main__':

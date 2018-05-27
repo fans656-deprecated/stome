@@ -1,3 +1,5 @@
+import os
+
 import fsutil
 import store
 from user import User
@@ -14,20 +16,24 @@ def init_storages():
     templates = store.storage.get_templates()
     storages = []
     for template in templates:
-        storage = store.storage.get_storage(None)
-        storage.update(template)
-        storages.append(storage)
+        if template['type'] == 'local':
+            storage = store.storage.get(None)
+            storage.update(template)
+            storages.append(storage)
+            break
     return storages
 
 
 def init():
+    os.system('rm ~/.stome-files/* 2> /dev/null')
+    os.system('rm ../../files/transfer/* 2> /dev/null')
     fsutil.erase_everything()
 
     storages = init_storages()
 
     root_dir = fsutil.create_root_dir()
     root_dir.update_meta(root_user, {
-        'storages': [s.meta['id'] for s in storages],
+        'storage_ids': [s.meta['id'] for s in storages],
     })
 
     home1 = fsutil.create_home_dir_for(user1)

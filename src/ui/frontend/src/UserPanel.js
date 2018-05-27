@@ -1,30 +1,27 @@
 import React from 'react';
 import IconSettings from 'react-icons/lib/md/settings';
-import IconUpload from 'react-icons/lib/fa/upload';
 
 import UserSettings from './UserSettings';
 import Dialog from './Dialog';
+import {IconButton} from './Button';
 
 export default class UserPanel extends React.Component {
   render() {
-    const iconSize = 18;
     return (
       <div className="user-panel">
-        <button className="icon" onClick={this.onUploadClicked}
-          title="Upload"
-        >
-          <IconUpload size={iconSize}/>
-        </button>
-        <button className="icon" onClick={this.onSettingsClicked}
+        <IconButton
           title="Settings"
-        >
-          <IconSettings size={iconSize}/>
-        </button>
+          icon={IconSettings}
+          onClick={this.onSettingsClicked}
+        />
         <Dialog ref={ref => this.dialog = ref}>
           <UserSettings/>
         </Dialog>
       </div>
     );
+  }
+
+  onNewFolderClicked = () => {
   }
 
   onUploadClicked = () => {

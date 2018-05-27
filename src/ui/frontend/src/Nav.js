@@ -62,11 +62,15 @@ const Arrow = ({node, onClick}) => {
   );
 }
 
-const Name = ({node}) => (
-  <span className="tree-node-name">
-    {node.meta.name}
-  </span>
-);
+const Name = ({node}) => {
+  let name = node.meta.name;
+  if (name.length === 0) name = '/';
+  return (
+    <a className="tree-node-name">
+      {name}
+    </a>
+  );
+}
 
 //class Loading extends React.Component {
 //  state = {loading: false}

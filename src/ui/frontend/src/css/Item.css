@@ -1,9 +1,10 @@
 .item {
   display: inline-flex;
   flex-direction: column;
-  padding: .5em;
-  margin: 0 .5em;
-  min-width: 64px;
+  align-items: center;
+  padding: .6em;
+  margin: .2em;
+  max-width: 6em;
   border-radius: 5px;
 }
 
@@ -17,5 +18,7 @@
 }
 
 .item .name {
+  max-width: 6em;
   text-align: center;
+  word-wrap: break-word;
 }

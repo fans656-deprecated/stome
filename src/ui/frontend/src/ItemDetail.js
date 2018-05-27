@@ -1,4 +1,5 @@
-import React from 'react';
+import React from 'react'
+import {KB, MB, GB, TB} from './constant'
 
 export default class Detail extends React.Component {
   render() {
@@ -11,12 +12,14 @@ export default class Detail extends React.Component {
       ['Owner', meta.owner],
       ['Group', meta.group],
       ['Access', accessToString(meta.access)],
-      ['Size', meta.size],
+      ['Size', humanSize(meta.size)],
     ]);
     if (meta.type === 'file') {
     }
     return (
-      <div className="item-detail">
+      <div className="item-detail" style={{
+        wordWrap: 'break-word',
+      }}>
         {
           detail.map(([name, value]) => (
             <p key={name}><span>{name}</span>: <span>{value}</span></p>
@@ -36,4 +39,18 @@ function accessToString(access) {
   a.push(access & 0o004 ? 'r' : '-');
   a.push(access & 0o002 ? 'w' : '-');
   return a.join('');
+}
+
+function humanSize(size) {
+  if (size < KB) {
+    return size + 'B';
+  } else if (size < MB) {
+    return (size / KB).toFixed(0) + 'KB';
+  } else if (size < GB) {
+    return (size / MB).toFixed(0) + 'MB';
+  } else if (size < TB) {
+    return (size / GB).toFixed(0) + 'GB';
+  } else {
+    return (size / TB).toFixed(0) + 'TB';
+  }
 }

@@ -1,17 +1,19 @@
-import React from 'react';
-import $ from 'jquery';
-import { withRouter } from 'react-router-dom';
+import React from 'react'
+import $ from 'jquery'
+import { withRouter } from 'react-router-dom'
 
-import Console from './Console';
-import UserPanel from './UserPanel';
-import Nav from './Nav';
-import Content from './Content';
-import ItemPanel from './ItemPanel';
-import StatusBar from './StatusBar';
-import getTree from './node';
-import upload from './upload';
-
-import './css/Explorer.css';
+import Console from './Console'
+import UserPanel from './UserPanel'
+import Nav from './Nav'
+import Content from './Content'
+import ItemPanel from './ItemPanel'
+import StatusBar from './StatusBar'
+import getTree from './node'
+import upload from './upload'
+import { headRes, joinPaths, splitBaseName } from './util'
+import watch from './watch'
+import conf from './conf'
+import './css/Explorer.css'
 
 class Explorer extends React.Component {
   state = {
@@ -25,7 +27,7 @@ class Explorer extends React.Component {
   }
 
   componentDidMount = async () => {
-    window.upload = this.upload;
+    window.upload = this.openFileSelection;
     const tree = await getTree(this.props.rootPath);
     await tree.setCurrentPath(this.props.currentPath);
     window.root = tree.root;
@@ -42,6 +44,14 @@ class Explorer extends React.Component {
             <Console/>
           </div>
           <div className="right child">
+            <a
+              id="todo"
+              href="/?todo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              TODO
+            </a>
             <UserPanel/>
           </div>
         </header>
@@ -50,8 +60,11 @@ class Explorer extends React.Component {
             onNodeClicked={this.onNodeClickedInNav}
             onNodeToggled={this.onNodeToggledInNav}
           />
-          <Content dir={this.state.tree.currentDir}
+          <Content
+            currentDir={this.state.tree.currentDir}
+            currentItem={this.state.tree.currentItem}
             onClick={this.onItemClickedInContent}
+            onItemChange={() => this.setState({})}
           />
           <ItemPanel node={tree.currentItem || tree.currentDir}/>
         </main>
@@ -73,7 +86,6 @@ class Explorer extends React.Component {
   }
 
   onNodeClickedInNav = async (node) => {
-    console.log(node);
     if (node.isCurrentDir()) {
       await node.toggle();
     } else {
@@ -84,7 +96,16 @@ class Explorer extends React.Component {
 
   onItemClickedInContent = async (node) => {
     if (node && node.isCurrentItem()) {
-      if (node.meta.listable) this.changeCurrentDir(node);
+      if (node.meta.listable) {
+        this.changeCurrentDir(node);
+      } else {
+        const url = conf.api_origin + node.meta.path;
+        const a = $(`<a href="${url}" target="_blank" style="display: none">`);
+        a.attr('rel', 'noopener noreferer');
+        $('body').append(a);
+        a[0].click();
+        a.remove();
+      }
     } else {
       this.state.tree.currentItem = node;
     }
@@ -100,39 +121,52 @@ class Explorer extends React.Component {
     this.props.history.push(node.meta.path);
   }
 
-  upload = (path) => {
+  openFileSelection = (path) => {
     this.setState({
-      uploadPath: path,
+      uploadPath: path || '',
     }, () => $('#upload').click());
   }
 
-  onFileInputChange = () => {
+  onFileInputChange = async () => {
+    let [dirpath, name] = splitBaseName(this.state.uploadPath);
+    dirpath = joinPaths(this.getCurrentDirPath(), dirpath);
     const fileInput = $('#upload');
     const files = fileInput[0].files;
-    let path = this.state.uploadPath;
-    let name = null;
-    if (!path.startsWith('/')) {
-      const curPath = this.state.tree.currentDir.meta.path;
-      path = curPath + '/' + path;
-    }
-    if (!path.endsWith('/')) {
-      const parts = path.split('/');
-      name = parts.pop();
-      path = parts.join('/') + '/';
-    }
     if (files.length === 1) {
-      this.doUploadFile(path, name, files[0]);
+      this.doUploadFile(dirpath, name, files[0]);
     } else {
       for (let i = 0; i < files.length; ++i) {
-        this.doUploadFile(path, null, files[i]);
+        this.doUploadFile(dirpath, null, files[i]);
       }
     }
     fileInput.val(null);
   }
 
-  doUploadFile = (path, name, file) => {
-    path = path + (name || file.name);
-    upload(path, file);
+  getCurrentDirPath = () => {
+    return this.state.tree.currentDir.meta.path;
+  }
+
+  doUploadFile = (dirpath, name, file) => {
+    const path = joinPaths(dirpath, (name || file.name));
+    upload(path, file, {
+      onHashProgress: this.onHashProgress,
+    });
+    watch(() => this.watchPath(dirpath, path));
+  }
+
+  onHashProgress = (offset, size) => {
+    const percent = (offset / size * 100).toFixed(2);
+    console.log(percent + '%');
+  }
+
+  watchPath = async (dirpath, path) => {
+    const res = await headRes(path);
+    if (res.status === 200) {
+      const dir = await this.state.tree.findByPath(dirpath);
+      await dir.update();
+      this.setState({});
+      return true;
+    }
   }
 }
 

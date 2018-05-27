@@ -2,27 +2,24 @@ import os
 import json
 from collections import OrderedDict
 
+import db
 import util
-from db import getdb
-from user import User
+import store
 from errors import *
 
 
 def get_existed_node(path):
     node = get_node(path)
     if not node.exists:
-        raise NotFound
+        raise NotFound(path)
     return node
 
 
-def get_node(path):
-    return Node(util.normalized_path(path))
-
-
-def get_file_node(path):
-    node = get_node(path)
-    node.type = 'file'
-    return node
+def get_dir_or_file_node(path):
+    if path.endswith('/'):
+        return get_dir_node(path)
+    else:
+        return get_file_node(path)
 
 
 def get_dir_node(path):
@@ -33,11 +30,23 @@ def get_dir_node(path):
     return node
 
 
+def get_file_node(path):
+    node = get_node(path)
+    if node.exists and not node.is_file:
+        raise NotFile(node)
+    node.type = 'file'
+    return node
+
+
+def get_node(path):
+    return Node(util.normalized_path(path))
+
+
 class Node(object):
 
     def __init__(self, path, meta=None):
         if not meta:
-            meta = getdb().node.find_one({'path': path}, {'_id': False})
+            meta = db.getdb().node.find_one({'path': path}, {'_id': False})
         if meta:
             self.meta = meta
             self.exists = True
@@ -60,6 +69,10 @@ class Node(object):
     @property
     def type(self):
         return self.meta['type']
+
+    @property
+    def mimetype(self):
+        return self.meta['mimetype']
 
     @type.setter
     def type(self, type):
@@ -127,22 +140,38 @@ class Node(object):
 
     @property
     def children(self):
-        metas = getdb().node.find({'parent': self.path}, {'_id': False})
+        metas = db.getdb().node.find({'parent': self.path}, {'_id': False})
         return [Node(m['path'], m) for m in metas]
 
     @property
+    def md5(self):
+        return self.meta['md5']
+
+    @property
     def as_ls_entry(self):
-        meta = self._get_meta()
+        meta = self.inherited_meta
         meta.update({
             'listable': self.is_dir,
         })
         return meta
 
     @property
-    def storages(self):
-        return self.meta.get('storages') or self.parent.storages
+    def storage_ids(self):
+        return self.meta.get('storage_ids') or self.parent.storage_ids
 
-    def create(self, user, meta=None, size=0, md5=None):
+    @property
+    def content(self):
+        return store.content.get(self.md5)
+
+    @property
+    def inherited_meta(self):
+        meta = dict(self.meta)
+        meta.update({
+            'storage_ids': self.storage_ids,
+        })
+        return meta
+
+    def create(self, user, meta=None, size=0, md5=None, mimetype=None):
         if self.exists:
             raise Existed(self)
         parent = self.parent
@@ -150,7 +179,7 @@ class Node(object):
             self.parent.create(user, meta)
         if not user.can_create(self):
             raise CantCreate(self)
-        return self._create(user, meta, size, md5)
+        return self._create(user, meta, size, md5, mimetype)
 
     def list(self, user, depth):
         if not user.can_read(self):
@@ -171,7 +200,7 @@ class Node(object):
             raise NotFound(self)
         if not user.can_read(self):
             raise CantRead(self)
-        return self._get_meta()
+        return self.inherited_meta
 
     def update_meta(self, operator, meta, silent=False):
         if not meta:
@@ -229,34 +258,23 @@ class Node(object):
                     raise IsDir(self)
             for child in self.children:
                 child.remove(operator, recursive, silent)
-            self._remove()
+            self._remove_single()
 
     def iter_content(self, visitor):
         if not visitor.can_read(self):
             raise CantRead(self)
-        return 'todo'
-
-    def _inc_ancestor_size(self, size):
-        if self.size:
-            self.parent._inc_size(size)
+        return self.content.iter()
 
     def _inc_size(self, size):
         self.size += size
-        parent = self.parent
-        if not parent.is_root:
-            parent._inc_size(size)
+        if not self.is_root:
+            self.parent._inc_size(size)
 
-    def _get_meta(self):
-        meta = dict(self.meta)
-        meta.update({
-            'storages': self.storages,
-        })
-        return meta
+    def _remove_single(self):
+        db.getdb().node.remove({'path': self.path})
+        self._inc_size(-self.size)
 
-    def _remove(self):
-        getdb().node.remove({'path': self.path})
-
-    def _create(self, user, meta=None, size=0, md5=None):
+    def _create(self, user, meta=None, size=0, md5=None, mimetype=None):
         username = user.username
         now = util.utc_now_str()
         self.meta.update({
@@ -274,16 +292,25 @@ class Node(object):
             self.meta.update({
                 'access': 0664,
                 'md5': md5,
+                'mimetype': mimetype or 'application/octet-stream'
             })
+            self._add_instances()
         self.meta.update(meta or {})
-        self._inc_ancestor_size(size)
         self.exists = True
         self._serialize(update=self.meta, upsert=True)
+        self.parent._inc_size(size)
         return self
+
+    def _add_instances(self):
+        content = self.content
+        if not content.exists:
+            content.create(self.size)
+        for storage_id in self.storage_ids:
+            content.add_instance(storage_id)
 
     def _serialize(self, update=None, upsert=False):
         self.meta.update(update or {})
-        getdb().node.update({'path': self.path}, self.meta, upsert=upsert)
+        db.getdb().node.update({'path': self.path}, self.meta, upsert=upsert)
 
     def __nonzero__(self):
         return self.exists

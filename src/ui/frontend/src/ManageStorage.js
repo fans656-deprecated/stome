@@ -14,9 +14,7 @@ export default class ManageStorage extends React.Component {
   }
 
   render() {
-    const node = this.props.node;
-    const meta = node.meta;
-    const ids = meta.storages || [];
+    const ids = this.props.node.meta.storage_ids || [];
     const storages = this.state.storages;
     return (
       <div className="manage-storage">
@@ -49,15 +47,15 @@ export default class ManageStorage extends React.Component {
     const node = this.props.node;
     const meta = node.meta;
     if (enable) {
-      meta.storages.push(storage.id);
+      meta.storage_ids.push(storage.id);
     } else {
-      meta.storages = meta.storages.filter(id => id !== storage.id);
+      meta.storage_ids = meta.storage_ids.filter(id => id !== storage.id);
     }
     let path = meta.path;
     if (meta.listable && !path.endsWith('/')) path += '/';
     await fetchJSON('PUT', path + '?meta', {
       path: meta.path,
-      storages: meta.storages,
+      storage_ids: meta.storage_ids,
     });
     await node.update(true);
     this.setState({});

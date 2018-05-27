@@ -10,6 +10,7 @@ class OperationError(Exception):
 
 class NotExist(OperationError): pass
 class NotDir(OperationError): pass
+class NotFile(OperationError): pass
 class DirExisted(OperationError): pass
 class CantRead(OperationError): pass
 class CantWrite(OperationError): pass

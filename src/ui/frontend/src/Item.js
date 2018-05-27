@@ -19,9 +19,13 @@ export default class Item extends React.Component {
       classes.push('active');
     }
     return (
-      <div className={classes.join(' ')} onClick={this.onClick}>
+      <div
+        className={classes.join(' ')}
+        onClick={this.onClick}
+        onMouseDown={ev => ev.preventDefault()}
+      >
         <img className="thumbnail" src={icon} alt={node.meta.path} width={64}/>
-        <span className="name">{node.meta.name}</span>
+        <a className="name">{node.meta.name}</a>
       </div>
     );
   }

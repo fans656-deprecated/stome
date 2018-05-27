@@ -1,7 +1,8 @@
 import os
 
+import db
+from node import get_node, get_file_node, get_dir_node
 from user import User, root_user
-from node import getdb, get_node, get_dir_node
 
 
 def initialized():
@@ -9,9 +10,10 @@ def initialized():
 
 
 def erase_everything():
-    getdb().node.remove({})
-    getdb().content.remove({})
-    getdb().storage.remove({})
+    db.getdb().node.remove()
+    db.getdb().content.remove()
+    db.getdb().storage.remove()
+    db.getdb().instance.remove()
 
 
 def create_root_dir():
@@ -50,10 +52,3 @@ def ls(operator, path):
     dirs = [d['path'] + '/' for d in r['dirs']]
     files = [f['path'] for f in r['files']]
     return dirs + files
-
-
-if __name__ == '__main__':
-    import json
-    from node import get_node, getdb
-    from test.setup import *
-    from pprint import pprint

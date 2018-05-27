@@ -13,7 +13,10 @@ local_storage_root = os.path.join(_project_root, 'files/local')
 transfer_root = os.path.join(_project_root, 'files/transfer')
 
 
-CHUNK_SIZE = 4096
+KB = 1024
+MB = 1024 * KB
+CHUNK_SIZE = 4 * MB
+CHUNK_SIZE = 4 * KB
 
 
 if __name__ == '__main__':
