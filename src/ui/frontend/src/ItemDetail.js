@@ -6,26 +6,30 @@ export default class Detail extends React.Component {
     const node = this.props.node;
     const meta = node.meta;
     let detail = [];
-    detail = detail.concat([
-      ['Name', meta.name],
-      ['Path', meta.path],
-      ['Owner', meta.owner],
-      ['Group', meta.group],
-      ['Access', accessToString(meta.access)],
-      ['Size', humanSize(meta.size)],
-    ]);
-    if (meta.type === 'file') {
+    if (!node.transfer) {
+      detail = detail.concat([
+        ['Name', meta.name],
+        ['Path', meta.path],
+        ['Owner', meta.owner],
+        ['Group', meta.group],
+        ['Access', accessToString(meta.access)],
+        ['Size', humanSize(meta.size)],
+      ]);
+      if (meta.type === 'file') {
+      }
+    } else {
+      //
     }
     return (
       <div className="item-detail" style={{
         wordWrap: 'break-word',
       }}>
-        {
-          detail.map(([name, value]) => (
-            <p key={name}><span>{name}</span>: <span>{value}</span></p>
-          ))
-        }
-      </div>
+      {
+        detail.map(([name, value]) => (
+          <p key={name}><span>{name}</span>: <span>{value}</span></p>
+        ))
+      }
+    </div>
     );
   }
 }

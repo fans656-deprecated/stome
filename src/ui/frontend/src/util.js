@@ -40,8 +40,8 @@ export class File {
     onProgress(this.offset, this.size);
     while (true) {
       const data = await this.read(4 * MB);
-      onProgress(this.offset, this.size);
       if (!data) break;
+      onProgress(this.offset, this.size);
       m.update(data);
     }
     return m.hex();

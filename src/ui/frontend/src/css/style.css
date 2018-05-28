@@ -17,8 +17,9 @@ body {
   color: var(--fg-color);
 }
 
-#todo {
+a {
   color: var(--fg-color);
+  text-decoration: none;
 }
 
 .vertical {

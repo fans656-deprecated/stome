@@ -16,10 +16,17 @@ def newdb():
 
 if __name__ == '__main__':
     db = getdb()
-    r = db.content.find()
-    print '=' * 40, 'content'
+
+    print '=' * 40, 'file node'
+    r = db.node.find({'type': 'file'})
     for x in r:
         print x
+
+    print '=' * 40, 'content'
+    r = db.content.find()
+    for x in r:
+        print x
+
     print '=' * 40, 'instance'
     r = db.instance.find()
     for x in r:

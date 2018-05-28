@@ -17,7 +17,7 @@ export default async function upload(path, file, callbacks) {
     });
   } else {
     for (let offset = 0; offset < file.size; offset += conf.chunk_size) {
-      const blob = file.file.slice(offset, offset + conf.chunk_size);
+      const blob = file.file.slice(offset, offset + conf.chunk_size, file.type);
       _upload(path, blob, {
         md5: md5,
         size: file.size,
@@ -29,6 +29,7 @@ export default async function upload(path, file, callbacks) {
 }
 
 async function _upload(path, file, args) {
+  return;
   return new Promise(resolve => {
     $.ajax({
       method: 'PUT',

@@ -1,4 +1,5 @@
-import { fetchDir, fetchJSON } from './util';
+import { headRes, fetchDir, fetchJSON } from './util';
+import watch from './watch'
 
 /**
  * Make a tree rooted at given path, e.g.
@@ -8,13 +9,14 @@ import { fetchDir, fetchJSON } from './util';
  *
  * @param {string} path - The path of tree's root node
  */
-export default async function getTree(path) {
+export async function getTree(path, ui) {
   const root = new Node(await fetchDir(path));
-  const tree = new Tree(root);
+  const tree = new Tree(root, ui);
   return tree;
 }
+export default getTree;
 
-class Node {
+export class Node {
   /**
    * @param {object} meta - Meta info got by e.g. GET http://res.eno.zone/home
    * @param {Node} parent - This node's parent node, nullable for root
@@ -49,6 +51,11 @@ class Node {
     return this === this.tree.currentItem;
   }
 
+  addFileChild = (node) => {
+    if (!this.loaded) this._load();
+    this.files.push(node);
+  }
+
   /**
    * Collapse this node if `toggled` === false else uncollapse
    * @param {Boolean} toggled - false for collapse, true for uncollapse
@@ -79,6 +86,7 @@ class Node {
       ));
       this.children = this.dirs.concat(this.files);
     }
+    this.tree.ui.update();
   }
 
   updateParent = async () => {
@@ -110,6 +118,29 @@ class Node {
   findByPath = async (path, callback) => {
     if (!path) return;
     return this._findByPathNames(path.split('/'), callback);
+  }
+
+  onHashProgress = (offset, size) => {
+    const transfer = this.transfer;
+    const done = offset === size;
+    if (done) {
+      transfer.status = 'uploading';
+      transfer.progress = 0;
+    } else {
+      const percent = offset / size * 100;
+      transfer.hashProgress = percent;
+    }
+    this.tree.ui.update();
+  }
+
+  _watch = async () => {
+    const meta = this.meta;
+    const res = await headRes(meta.path);
+    if (res.status === 200) {
+      await this.parent.update();
+      this.setState({});
+      return true;
+    }
   }
 
   _findByPathNames = async (names, callback) => {
@@ -158,8 +189,9 @@ class Node {
 }
 
 class Tree {
-  constructor(root) {
+  constructor(root, ui) {
     this.root = root;
+    this.ui = ui;
     this.currentDir = null;
     this.currentItem = null;
     root.tree = this;

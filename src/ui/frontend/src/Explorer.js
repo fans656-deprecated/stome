@@ -8,10 +8,9 @@ import Nav from './Nav'
 import Content from './Content'
 import ItemPanel from './ItemPanel'
 import StatusBar from './StatusBar'
-import getTree from './node'
+import { getTree, Node } from './node'
 import upload from './upload'
-import { headRes, joinPaths, splitBaseName } from './util'
-import watch from './watch'
+import { joinPaths, splitBaseName } from './util'
 import conf from './conf'
 import './css/Explorer.css'
 
@@ -19,6 +18,7 @@ class Explorer extends React.Component {
   state = {
     tree: null,
     uploadPath: null,
+    transfer: null,
   }
 
   componentWillReceiveProps = async (props) => {
@@ -28,7 +28,7 @@ class Explorer extends React.Component {
 
   componentDidMount = async () => {
     window.upload = this.openFileSelection;
-    const tree = await getTree(this.props.rootPath);
+    const tree = await getTree(this.props.rootPath, this);
     await tree.setCurrentPath(this.props.currentPath);
     window.root = tree.root;
     this.setState({tree: tree});
@@ -99,12 +99,7 @@ class Explorer extends React.Component {
       if (node.meta.listable) {
         this.changeCurrentDir(node);
       } else {
-        const url = conf.api_origin + node.meta.path;
-        const a = $(`<a href="${url}" target="_blank" style="display: none">`);
-        a.attr('rel', 'noopener noreferer');
-        $('body').append(a);
-        a[0].click();
-        a.remove();
+        this.openFile(node);
       }
     } else {
       this.state.tree.currentItem = node;
@@ -119,6 +114,19 @@ class Explorer extends React.Component {
   changeCurrentDir = (node) => {
     this.state.tree.setCurrentDir(node);
     this.props.history.push(node.meta.path);
+  }
+
+  openFile = (node) => {
+    if (node.transfer) return;
+    const url = conf.api_origin + node.meta.path;
+    const a = $('<a>');
+    a.attr('href', url);
+    a.attr('target', '_blank');
+    a.attr('rel', 'noopener noreferer');
+    a.attr('style', 'display: none');
+    $('body').append(a);
+    a[0].click();
+    a.remove();
   }
 
   openFileSelection = (path) => {
@@ -146,28 +154,35 @@ class Explorer extends React.Component {
     return this.state.tree.currentDir.meta.path;
   }
 
-  doUploadFile = (dirpath, name, file) => {
-    const path = joinPaths(dirpath, (name || file.name));
+  doUploadFile = async (dirpath, name, file) => {
+    name = name || file.name;
+    const path = joinPaths(dirpath, name);
+    const dir = await this.state.tree.findByPath(dirpath);
+    const node = makeTransferNode(dir, path, name);
+
+    dir.addFileChild(node);
+
     upload(path, file, {
-      onHashProgress: this.onHashProgress,
+      onHashProgress: node.onHashProgress,
     });
-    watch(() => this.watchPath(dirpath, path));
+    this.update();
   }
 
-  onHashProgress = (offset, size) => {
-    const percent = (offset / size * 100).toFixed(2);
-    console.log(percent + '%');
+  update = () => {
+    this.setState({});
   }
+}
 
-  watchPath = async (dirpath, path) => {
-    const res = await headRes(path);
-    if (res.status === 200) {
-      const dir = await this.state.tree.findByPath(dirpath);
-      await dir.update();
-      this.setState({});
-      return true;
-    }
-  }
+function makeTransferNode(dir, path, name) {
+  const node = new Node({
+    path: path,
+    name: name,
+    listable: false,
+  }, dir, dir.tree);
+  node.transfer = {
+    status: 'hashing',
+  };
+  return node;
 }
 
 Explorer = withRouter(Explorer);
