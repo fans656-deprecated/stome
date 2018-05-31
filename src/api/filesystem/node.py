@@ -438,6 +438,10 @@ class Node(object):
     def exists(self):
         return self._exists
 
+    @property
+    def listable(self):
+        return False
+
     def create(self):
         self._serialize()
 
@@ -457,6 +461,10 @@ class DirNode(Node):
                 'type': 'dir',
                 'size': 0,
             })
+
+    @property
+    def listable(self):
+        return True
 
 
 class FileNode(object):

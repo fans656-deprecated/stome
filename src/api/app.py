@@ -5,37 +5,51 @@ import functools
 import traceback
 
 import jwt
-from flask import *
+import flask
 
 import conf
 import util
 import store
 import fsutil
+import filesystem
 from errors import *
 from user import User
-from node import (
-    get_node,
-    get_existed_node,
-    get_file_node,
-    get_dir_node,
-    get_dir_or_file_node,
-)
 
 
 app = Flask(__name__, template_folder='.')
 
 
 def guarded(viewfunc):
+    """
+    Guard viewfunc to simplify result returning and exception handling
+
+    Viewfunc can
+
+        Return a Flask Response
+
+        Return a dict like {'templates': []}
+
+        Return a tuple like ({'detail': 'not found'}, 404)
+
+        Raise a error.Error exception like Error('not found', 404)
+    """
     @functools.wraps(viewfunc)
     def decorated_viewfunc(*args, **kwargs):
         try:
-            r = viewfunc(*args, **kwargs)
-            if isinstance(r, Response):
-                return r
-            elif isinstance(r, tuple):
-                return json.dumps(r[0]), r[1]
+            result = viewfunc(*args, **kwargs)
+
+            if isinstance(result, flask.Response):
+                return result
+
+            if isinstance(result, tuple):
+                errno = result[1]
+                result = result[0]
             else:
-                return json.dumps(r or {'errno': 0})
+                errno = 0
+
+            if isinstance(result, dict):
+                errno = 0
+            ret = json.dumps()
         except Exception as e:
             exc = traceback.format_exc()
             print exc
@@ -43,18 +57,15 @@ def guarded(viewfunc):
     return decorated_viewfunc
 
 
-@app.route('/', methods=['OPTIONS'])
-@app.route('/<path:path>', methods=['OPTIONS'])
-@guarded
-def options_path(path=''):
-    return ''
-
-
 @app.route('/', methods=['HEAD'])
 @app.route('/<path:path>', methods=['HEAD'])
 @guarded
 def head_path(path=''):
-    get_existed_node(path)
+    """Return 200 if path exists else 404"""
+    if filesystem.exists(path):
+        return '', 200
+    else:
+        return '', 404
 
 
 @app.route('/')
@@ -225,6 +236,13 @@ def delete_path(path):
         storage.delete()
     else:
         get_existed_node(path).remove(get_visitor(), recursive=True)
+
+
+@app.route('/', methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+@guarded
+def options_path(path=''):
+    return ''
 
 
 @app.after_request
