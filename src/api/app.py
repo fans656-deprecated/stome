@@ -25,13 +25,16 @@ def guarded(viewfunc):
 
     Viewfunc can
 
-        Return a Flask Response
+        Return a Flask Response, which will be used directly
 
-        Return a dict like {'templates': []}
+        Return a dict like {'templates': []}, which will be JSONified
 
-        Return a tuple like ({'detail': 'not found'}, 404)
+        Return a dict and a status code as tuple like
+        ({'detail': 'not found'}, 404), former will be JSONfied,
+        later will be used as status code
 
-        Raise a error.Error exception like Error('not found', 404)
+        Raise a error.Error exception like Error('not found', 404), which
+        will be turned into response like {'detail': 'not found'}, 404
     """
     @functools.wraps(viewfunc)
     def decorated_viewfunc(*args, **kwargs):
@@ -42,18 +45,25 @@ def guarded(viewfunc):
                 return result
 
             if isinstance(result, tuple):
-                errno = result[1]
+                status_code = result[1]
                 result = result[0]
             else:
-                errno = 0
+                status_code = 200
 
             if isinstance(result, dict):
-                errno = 0
-            ret = json.dumps()
+                ret = json.dumps(result)
+            elif isinstance(result, (str, unicode)):
+                ret = result
+            else:
+                ret = ''
+
+            return ret, status_code
+
+        except error.Error as err:
+            return json.dumps(err.result), err.errno
         except Exception as e:
-            exc = traceback.format_exc()
-            print exc
-            return exc, e.errno if hasattr(e, 'errno') else 400
+            traceback.print_exc()
+            return traceback.format_exc(), 500
     return decorated_viewfunc
 
 
