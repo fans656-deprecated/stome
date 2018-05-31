@@ -19,7 +19,7 @@ import store
 origin = 'http://localhost:{}'.format(conf.port)
 
 
-def upload_file():
+def upload_file(data='hello stome\n'):
     class Stream(object):
 
         def __init__(self, s):
@@ -32,17 +32,23 @@ def upload_file():
             self.i = i + n
             return r
 
-    data = 'hello stome\n'
     md5 = util.calc_md5(data)
 
     r = requests.put(origin + '/t.txt', params={
         'md5': md5,
         'size': len(data),
     }, data=data)
+    print r.headers
+    print r.text
 
 
 def list_dir():
     r = requests.get(origin + '?depth=1')
+    print json.dumps(r.json(), indent=2)
+
+
+def get_meta(path):
+    r = requests.get(origin + path + '?meta')
     print json.dumps(r.json(), indent=2)
 
 
@@ -64,7 +70,7 @@ def put_storage(storage):
 init()
 
 #upload_file()
-#
+
 #time.sleep(0.1)
 #node = get_node('/t.txt')
 #print node.content

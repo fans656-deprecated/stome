@@ -20,7 +20,7 @@ class StorageInstanceLocal(store.instance.Instance):
         })
 
     def store(self, transfer_fpath, on_done=None):
-        db.g_db = db.newdb()
+        db.use_new()
         src_path = transfer_fpath
         dst_path = self.fpath
         dst_dir = os.path.dirname(dst_path)

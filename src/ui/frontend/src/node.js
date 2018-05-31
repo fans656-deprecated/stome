@@ -1,4 +1,8 @@
-import { headRes, fetchDir, fetchJSON } from './util';
+import _ from 'lodash';
+
+import {
+  headRes, fetchDir, fetchMeta, fetchTransfer, fetchJSON
+} from './util';
 import watch from './watch'
 
 /**
@@ -70,21 +74,15 @@ export class Node {
    * Update node's info and descendants' structure.
    */
   update = async () => {
-    this.meta = await fetchDir(this.meta.path);
-    if (!this.loaded) {
-      this._load();
+    if (this.meta.listable) {
+      this.meta = await fetchDir(this.meta.path);
+      if (this.loaded) {
+        await this._updateStructure();
+      } else {
+        await this._load();
+      }
     } else {
-      const pathToChild = {};
-      this.children.forEach(child => pathToChild[child.meta.path] = child);
-      this.dirs = await Promise.all(
-        this.meta.dirs.map(meta => (
-          pathToChild[meta.path] || this._makeDirNode(meta)
-        ))
-      );
-      this.files = this.meta.files.map(meta => (
-        pathToChild[meta.path] || this._makeFileNode(meta)
-      ));
-      this.children = this.dirs.concat(this.files);
+      this.meta = await fetchMeta(this.meta.path);
     }
     this.tree.ui.update();
   }
@@ -121,26 +119,39 @@ export class Node {
   }
 
   onHashProgress = (offset, size) => {
-    const transfer = this.transfer;
+    const percent = offset / size * 100;
+    this.transfer.hashProgress = percent;
     const done = offset === size;
     if (done) {
-      transfer.status = 'uploading';
-      transfer.progress = 0;
-    } else {
-      const percent = offset / size * 100;
-      transfer.hashProgress = percent;
+      //console.log(this);
+      //watch(this._watchUntilNodeCreatedOnRemote);
     }
     this.tree.ui.update();
   }
 
-  _watch = async () => {
+  _watchUntilNodeCreatedOnRemote = async () => {
     const meta = this.meta;
     const res = await headRes(meta.path);
     if (res.status === 200) {
-      await this.parent.update();
-      this.setState({});
+      this.transfer.status = 'uploading';
+      this.transfer.progress = 0;
+      await this.update();
+      watch(this._watchUntilNodeUploaded);
       return true;
     }
+  }
+
+  _watchUntilNodeUploaded = async () => {
+    const meta = await fetchTransfer(this.meta.path);
+    const unreceived = _.sum(meta.unreceived.map(([b, e]) => e - b));
+    const total = meta.size;
+    if (unreceived === 0) {
+      delete this.transfer;
+      await this.update();
+      return true;
+    }
+    this.transfer.progress = (total - unreceived) / total * 100;
+    await this.update();
   }
 
   _findByPathNames = async (names, callback) => {
@@ -169,6 +180,20 @@ export class Node {
     this.files = this._makeFileNodes();
     this.children = this.dirs.concat(this.files);
     this.loaded = true;
+  }
+
+  _updateStructure = async () => {
+    const pathToChild = {};
+    this.children.forEach(child => pathToChild[child.meta.path] = child);
+    this.dirs = await Promise.all(
+      this.meta.dirs.map(meta => (
+        pathToChild[meta.path] || this._makeDirNode(meta)
+      ))
+    );
+    this.files = this.meta.files.map(meta => (
+      pathToChild[meta.path] || this._makeFileNode(meta)
+    ));
+    this.children = this.dirs.concat(this.files);
   }
 
   _makeDirNodes = async () => {

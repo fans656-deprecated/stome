@@ -22,6 +22,11 @@ def get(storage_id, md5):
         return instance
 
 
+def get_by_name(name):
+    meta = db.getdb().instance.find_one({'name': name}, {'_id': False})
+    return Storage(meta)
+
+
 def get_class(type):
     return getattr(store.storages, type).Instance
 
@@ -66,6 +71,9 @@ class Instance(object):
             self.delete()
         else:
             self.update_meta({'ref_count': count})
+
+    def query(self, request):
+        return  # no-op
 
     def iter_content(self):
         return self.iter()

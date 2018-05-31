@@ -21,3 +21,10 @@ class NotFound(OperationError):
 
     def __init__(self, name):
         super(NotFound, self).__init__(name, 404)
+
+
+class Error(Exception):
+
+    def __init__(self, detail, errno=400):
+        super(Error, self).__init__(detail)
+        self.errno = errno

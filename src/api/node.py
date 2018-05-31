@@ -11,7 +11,7 @@ from errors import *
 def get_existed_node(path):
     node = get_node(path)
     if not node.exists:
-        raise NotFound(path)
+        raise Error('{} not exists'.format(path), 404)
     return node
 
 
@@ -171,7 +171,7 @@ class Node(object):
         })
         return meta
 
-    def create(self, user, meta=None, size=0, md5=None, mimetype=None):
+    def create(self, user, meta=None):
         if self.exists:
             raise Existed(self)
         parent = self.parent
@@ -179,7 +179,7 @@ class Node(object):
             self.parent.create(user, meta)
         if not user.can_create(self):
             raise CantCreate(self)
-        return self._create(user, meta, size, md5, mimetype)
+        return self._create(user, meta)
 
     def list(self, user, depth):
         if not user.can_read(self):
@@ -274,10 +274,21 @@ class Node(object):
         db.getdb().node.remove({'path': self.path})
         self._inc_size(-self.size)
 
-    def _create(self, user, meta=None, size=0, md5=None, mimetype=None):
+    def _create(self, user, meta):
+        node_type = meta.get('type')
+        if node_type is None:
+            raise Error('node creation need to specify type')
+        if node_type == 'dir':
+            size = 0
+        elif node_type == 'file':
+            size = meta.get('size')
+        else:
+            raise Error('node type {} is not supported'.format(node_type))
         username = user.username
         now = util.utc_now_str()
+
         self.meta.update({
+            'type': node_type,
             'owner': username,
             'group': username,
             'ctime': now,
@@ -372,3 +383,114 @@ def get_list_result(node, depth):
         return list_directory(node, depth)
     else:
         return node.as_ls_entry
+
+
+class Node(object):
+    """
+    Represent basic info of a file system entity (e.g. file/directory)
+
+    Have the following fields:
+
+        path (unicode) - The entity's absolute path, e.g. '/img/girl/blue.jpg'
+        name (unicode) - The entity's name, e.g. 'blue.jpg'
+        parent_path (unicode) - The entity's parent's absolute path, e.g. '/img/girl'
+        owner (unicode) - Owner's username, e.g. 'fans656'
+        group (unicode) - Group name, e.g. 'fans656'
+        access (int) - Access control like Linux, e.g. 0775 => rwxrwxr-x
+        ctime (str) - Creation time, e.g. '2018-05-31 09:55:32 UTC'
+        mtime (str) - Modificaiton time, e.g. '2018-05-31 09:55:32 UTC'
+
+    Note:
+
+        Root path '/' has a parent path of itself, i.e. '/'
+    """
+
+    def __init__(self, path):
+        meta = db.getdb().node.find_one({'path': path}, {'_id': False})
+        if meta:
+            self._meta = meta
+            self._exists = True
+        else:
+            self._meta = {
+                'path': path,
+                'name': os.path.basename(path),
+                'parent': get_parent_path(path),
+            }
+            self._exists = False
+
+    @property
+    def path(self):
+        return self._meta['path']
+
+    @property
+    def name(self):
+        return self._meta['name']
+
+    @property
+    def parent_path(self):
+        return self._meta['parent_path']
+
+    @property
+    def parent(self):
+        return get_existed_node(self._parent_path)
+
+    @property
+    def exists(self):
+        return self._exists
+
+    def create(self):
+        self._serialize()
+
+    def _serialize(self):
+        db.getdb().node.update({'path': self.path}, self._meta, upsert=True)
+
+    def __nonzero__(self):
+        return self.exists
+
+
+class DirNode(Node):
+
+    def __init__(self, path):
+        super(DirNode, path)
+        if not self:
+            self._meta.update({
+                'type': 'dir',
+                'size': 0,
+            })
+
+
+class FileNode(object):
+
+    def __init__(self, path):
+        super(FileNode, path)
+        if not self:
+            self._meta.update({
+                'type': 'file',
+            })
+
+    @property
+    def content(self):
+        return store.content.get(md5)
+
+    def create(self, size, md5, mimetype):
+        self._meta.update({
+            'size': size,
+            'md5': md5,
+            'mimetype': mimetype,
+        })
+        content = self.content
+        for storage in self.parent.storages:
+            content.add_storage(storage)
+        super(FileNode, self).create()
+
+
+class LinkNode(object):
+
+    def __init__(self, path, target_node):
+        super(LinkNode, path)
+        if not self:
+            self._update_meta({
+                'type': 'link',
+                'size': 0,
+                'target_path': target_node.path,
+            })

@@ -86,3 +86,13 @@ when done writing
 1. [done] How to manage process/thread execution
 2. [done] How to partly update mongodb document
 3. How to upload to qiniu
+
+2018-05-30 07:52:16
+) js split and encrypt and upload to qiniu
+
+2018-05-30 09:52:24
+http://dns.xsazz.com/
+用这个网站的备案二级域名绑了七牛云
+
+2018-05-30 20:49:38
+) create upload token

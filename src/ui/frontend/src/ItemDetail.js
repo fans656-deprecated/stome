@@ -6,7 +6,9 @@ export default class Detail extends React.Component {
     const node = this.props.node;
     const meta = node.meta;
     let detail = [];
-    if (!node.transfer) {
+    const createdOnRemote = !node.transfer
+      || node.transfer.status === 'uploading';
+    if (createdOnRemote) {
       detail = detail.concat([
         ['Name', meta.name],
         ['Path', meta.path],

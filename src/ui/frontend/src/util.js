@@ -4,7 +4,12 @@ import md5 from 'js-md5'
 import conf from './conf'
 import {MB} from './constant'
 
-export class File {
+export async function calcMD5(file, onProgress) {
+  onProgress = onProgress || (() => null);
+  return await (new Hasher(file)).calcMD5(onProgress);
+}
+
+export class Hasher {
   constructor(file) {
     this.file = file;
     this.offset = 0;
@@ -58,11 +63,26 @@ export async function fetchRes(path) {
   return await fetch(conf.api_origin + path);
 }
 
+export async function fetchMeta(path) {
+  const res = await fetch(conf.api_origin + path + '?meta');
+  return await res.json();
+}
+
 export async function fetchDir(path) {
   const params = qs.stringify({depth: 1});
   const res = await fetch(conf.api_origin + path + '?' + params);
   const data = await res.json();
   return data;
+}
+
+export async function fetchTransfer(path) {
+  const res = await fetch(conf.api_origin + path + '?transfer');
+  return await res.json();
+}
+
+export async function getJSON(path) {
+  const res = await fetch(conf.api_origin + path);
+  return await res.json();
 }
 
 export async function fetchJSON(method, path, data) {

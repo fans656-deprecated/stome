@@ -94,10 +94,15 @@ class TransferThumbInfo extends React.Component {
         </div>
       );
     } else {
+      const percent = node.transfer.progress.toFixed(2);
       return (
         <div className="transfer-thumb-info">
           <div>
             <span>Uploading... </span>
+          </div>
+          <div>
+            <span>{percent}</span>
+            <span>%</span>
           </div>
         </div>
       );

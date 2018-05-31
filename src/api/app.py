@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import functools
 import traceback
@@ -31,6 +32,8 @@ def guarded(viewfunc):
             r = viewfunc(*args, **kwargs)
             if isinstance(r, Response):
                 return r
+            elif isinstance(r, tuple):
+                return json.dumps(r[0]), r[1]
             else:
                 return json.dumps(r or {'errno': 0})
         except Exception as e:
@@ -69,15 +72,12 @@ def get_path(path=''):
 
     + Retrieve file/directory metadata
 
-        GET /img?meta=true
-        GET /img/girl.jpg?meta=true
-        {
-            "custom": {
-                "transfer": {
-                    "progress": {}
-                }
-            }
-        }
+        GET /img?meta
+        GET /img/girl.jpg?meta
+
+    # Query content transfer progress
+
+        GET /video/SIRO-1690.wmv?transfer
 
     + Get storage templates
 
@@ -90,33 +90,32 @@ def get_path(path=''):
     + Get storage instance by name
 
         GET /?storage=vps
+        GET /?storage=qiniu&op=get-upload-token
 
     + Query API page
 
-        GET /?api=true
+        GET /?api
     """
     if 'api' in request.args:
         return render_template('api.html')
 
     visitor = get_visitor()
+
+    if 'storage-templates' in request.args:
+        return {'templates': store.storage.get_templates()}
+    elif 'storage' in request.args:
+        return handle_get_storage(request)
+    elif 'storages' in request.args:
+        return {'storages': store.storage.get_storages()}
+
     node = get_existed_node(path)
 
     if 'meta' in request.args:
         return node.get_meta(visitor)
-    elif 'storage-templates' in request.args:
-        return {'templates': store.storage.get_templates()}
-    elif 'storage' in request.args:
-        name = request.args.get('storage')
-        if name:
-            storage = store.get_storage(name)
-            if not storage:
-                raise NotFound(name)
-            return storage
-    elif 'storages' in request.args:
-        return {'storages': store.storage.get_storages()}
+    elif 'transfer' in request.args:
+        return query_transfer_info(visitor, node)
     elif node.is_dir:
-        depth = int(request.args.get('depth', 1))
-        return node.list(visitor, depth)
+        return node.list(visitor, int(request.args.get('depth', 1)))
     elif node.is_file:
         return make_content_stream(visitor, node)
 
@@ -135,37 +134,40 @@ def put_path(path='/'):
             "root": "~/.stome-files"
         }
 
-    + Modify file/directory metadata
+    + Create/Update file/directory metadata
+
+        PUT /img?meta
+        {
+            "type": "dir"
+        }
 
         PUT /img/girl.jpg?meta
         {
-            "access": 0600,
+            "type": "file",
+            "md5": "2b61c6d1ac994fc5ae83187928131552",
             "size": 13267,
+            "mimetype": "image/jpeg"
         }
 
-    + Create directory
+    # + Upload file
 
-        PUT /img/
+    #     PUT /img/girl.jpg
+    #     <file-content>
 
-    + Upload file
+    #     Parameters:
 
-        PUT /img/girl.jpg
-        <file-content>
-
-        Parameters:
-
-            md5: (required) full md5
-            size: (required) total file size
-            chunk-md5: (optional) chunk md5
-            chunk-offset: (optional) chunk byte offset in file
+    #         md5: (required) full md5
+    #         size: (required) total file size
+    #         chunk-md5: (optional) chunk md5
+    #         chunk-offset: (optional) chunk byte offset in file
     """
     visitor = get_visitor()
     if 'storage' in request.args:
         return handle_upsert_storage(visitor)
     elif 'meta' in request.args:
-        return handle_update_node_meta(visitor, path)
-    else:
-        return handle_upsert_node(visitor, path)
+        return handle_upsert_node_meta(visitor, path)
+    #else:
+    #    return handle_upsert_node(visitor, path)
 
 
 @app.route('/<path:path>', methods=['POST'])
@@ -234,16 +236,39 @@ def after_request(r):
     return r
 
 
+def handle_get_storage(request):
+    storage_name = request.args.get('storage')
+    if storage_name is None:
+        return 'storage name not specified'
+
+    storage = store.storage.get_by_name(storage_name)
+    if not storage:
+        return 'no storage named {}'.format(storage_name)
+
+    op = request.args.get('op')
+    if op:
+        return storage.query(request)
+    else:
+        return storage
+
+
 def handle_upsert_storage(visitor):
     meta = request.json
-    storage = store.get_storage(meta.get('id'))
+    storage = store.storage.get(meta.get('id'))
     storage.update(meta)
     return storage.meta
 
 
-def handle_update_node_meta(visitor, path):
-    node = get_existed_node(path)
-    node.update_meta(visitor, request.json)
+def handle_upsert_node_meta(visitor, path):
+    meta = request.json
+    node_type = meta['type']
+    if node_type == 'dir':
+        node = get_dir_node(path)
+    elif node_type == 'file':
+        node = get_file_node(path)
+    if node.exists:
+        node.create(visitor)
+    node.update_meta(visitor, meta)
     return node.inherited_meta
 
 
@@ -262,16 +287,21 @@ def handle_upsert_node(visitor, path):
 
 
 def handle_upload(node, size, md5):
-    content = node.content
-    failed_bytes_range = content.write(
+    node.content.write(
         request.stream,
         offset=int(request.args.get('chunk-offset', 0)),
         md5=request.args.get('chunk-md5')
     )
-    if failed_bytes_range:
-        return json.dumps({
-            'failed': failed_bytes_range,
-        })
+
+
+def query_transfer_info(visitor, node):
+    if not visitor.can_read(node):
+        raise CantRead(node)
+    meta = dict(node.content.meta)
+    unreceived = meta.get('unreceived', [])
+    unreceived = sum(e - b for b, e in unreceived)
+    meta['received'] = meta['size'] - unreceived
+    return meta
 
 
 def get_visitor():

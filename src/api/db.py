@@ -14,6 +14,11 @@ def getdb():
 def newdb():
     return pymongo.MongoClient().stome
 
+
+def use_new():
+    global g_db
+    g_db = newdb()
+
 if __name__ == '__main__':
     db = getdb()
 

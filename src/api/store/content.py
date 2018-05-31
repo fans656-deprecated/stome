@@ -137,10 +137,9 @@ class Content(object):
 
     def write(self, data, offset=0, md5=None):
         self._start_transfer()
-        r = self._write_stream(data, offset, md5)
+        self._write_stream(data, offset, md5)
         if not self.unreceived:
             self._start_verify()
-        return r
 
     def _write_stream(self, stream, offset=0, md5=None):
         with self._open_transfer_file() as f:
@@ -158,10 +157,8 @@ class Content(object):
             chunk_range = chunk_offset, offset
             if md5 and m.hexdigest() != md5:
                 self.add_unreceived(chunk_range)
-                return chunk_range
             else:
                 self.remove_unreceived(chunk_range)
-                return None
 
     def _start_transfer(self):
         if self.status != 'transferring':
@@ -175,6 +172,7 @@ class Content(object):
     def _start_verify(self):
         self._update_meta({'unreceived_version': 0})
         self._transit_to('verifying')
+        return
         md5 = self._calc_full_md5()
         if self.md5 and self.md5 != md5:
             self._fail_verify()

@@ -8,10 +8,15 @@ import Nav from './Nav'
 import Content from './Content'
 import ItemPanel from './ItemPanel'
 import StatusBar from './StatusBar'
-import { getTree, Node } from './node'
-import upload from './upload'
-import { joinPaths, splitBaseName } from './util'
+
+import vpsUpload from './uploader/vps'
+import qiniuUpload from './uploader/qiniu'
+
 import conf from './conf'
+
+import { getTree, Node } from './node'
+import { joinPaths, splitBaseName, calcMD5 } from './util'
+
 import './css/Explorer.css'
 
 class Explorer extends React.Component {
@@ -158,12 +163,26 @@ class Explorer extends React.Component {
     name = name || file.name;
     const path = joinPaths(dirpath, name);
     const dir = await this.state.tree.findByPath(dirpath);
-    const node = makeTransferNode(dir, path, name);
 
+    const node = makeTransferNode(dir, path, name);
     dir.addFileChild(node);
 
-    upload(path, file, {
-      onHashProgress: node.onHashProgress,
+    const md5 = await calcMD5(file, node.onHashProgress);
+
+    let upload = null;
+    if (true) {  // upload to qiniu
+      upload = qiniuUpload;
+    } else {  // upload to server
+      upload = vpsUpload;
+    }
+
+    upload({
+      path: path,
+      dirpath: dirpath,
+      name: name,
+      md5: md5,
+      file: file,
+      node: node,
     });
     this.update();
   }
