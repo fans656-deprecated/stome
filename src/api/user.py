@@ -1,19 +1,26 @@
 class User(object):
 
     def __init__(self, meta):
-        self.username = meta['username']
         meta.update({
-            'groups': meta.get('groups', []) + [self.username]
+            'groups': meta.get('groups', []) + [meta['username']]
         })
         self.meta = meta
 
     @property
-    def is_root(self):
-        return self.username == 'root'
+    def username(self):
+        return self.meta['username']
 
     @property
     def groups(self):
         return self.meta['groups']
+
+    @property
+    def home_path(self):
+        return '/home' + self.username
+
+    @property
+    def is_root(self):
+        return self.username == 'root'
 
     def own(self, node):
         if self.is_root:

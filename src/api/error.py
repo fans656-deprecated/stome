@@ -6,3 +6,9 @@ class Error(Exception):
         elif isinstance(detail, (str, unicode)):
             self.result = {'detail': detail}
         self.errno = errno
+
+
+class PermissionDenied(Error):
+
+    def __init__(self, path):
+        super(PermissionDenied, self).__init__(path + ' permission denied', 401)

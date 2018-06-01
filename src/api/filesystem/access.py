@@ -1,6 +1,7 @@
 import os
 
 import util
+from error import Error, PermissionDenied
 from filesystem.node import get_by_path, Node, DirNode, FileNode
 
 
@@ -10,7 +11,7 @@ def get_node(visitor, path):
 
 class AccessControlledNode(object):
 
-    def __init__(self, visitor, path_or_node):
+    def __init__(self, visitor, path_or_node, silent=False):
         self.visitor = visitor
         if isinstance(path_or_node, Node):
             node = path_or_node
@@ -20,17 +21,11 @@ class AccessControlledNode(object):
             node = get_by_path(path)
         self.path = path
         self.node = node
+        self.silent = silent
 
     @property
     def exists(self):
-        node = self.node
-        if not node:
-            return False
-        parent = self.parent
-        if parent.readable and parent.executable:
-            return node is not None
-        else:
-            return False
+        return self.node is not None
 
     @property
     def readable(self):
@@ -116,15 +111,13 @@ class AccessControlledNode(object):
         return [AccessControlledNode(self.visitor, child)
                 for child in self.node.children]
 
-    def _create_as_dir(self):
-        meta = _make_meta(self.visitor.username, self.path)
-        meta.update({
-            'type': 'dir',
-            'access': 0775,  # TODO: inherit from parent
-        })
-        self.node = DirNode(meta)
-        self.node.serialize()
-        return self
+    def create_as_dir(self):
+        parent = self.parent
+        if not parent:
+            parent.create_as_dir()
+        if not parent.writable:
+            raise PermissionDenied(self.path)
+        self._create_as_dir()
 
     def get_meta(self):
         pass
@@ -142,8 +135,18 @@ class AccessControlledNode(object):
         if not node.has_content:
             raise Error(node.path + ' is not file')
 
-    def chmod(self, ):
+    def chmod(self, access):
         pass
+
+    def _create_as_dir(self):
+        meta = _make_meta(self.visitor.username, self.path)
+        meta.update({
+            'type': 'dir',
+            'access': self.parent.access,
+        })
+        self.node = DirNode(meta)
+        self.node.serialize()
+        return self
 
 
 def _make_meta(username, path):

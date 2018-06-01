@@ -27,10 +27,15 @@ def create_public_dir(path):
 
 
 def create_home_dir_for(user):
-    path = '/home/' + username
-    node = get_node(root_user, path)
+    node = get_node(root_user, user.home_path)
     node.create_as_dir()
-    username = user['username']
+    username = user.username
     node.chown(username)
     node.chgrp(username)
+    return node
+
+
+def create_dir_under_home(user, path):
+    node = get_node(user, user.home_path + path)
+    node.create_as_dir()
     return node
