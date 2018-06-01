@@ -5,14 +5,13 @@ import functools
 import traceback
 
 import jwt
-import flask
+from flask import request, Response, Flask
 
 import conf
 import util
-import store
-import fsutil
+#import store
+import error
 import filesystem
-from errors import *
 from user import User
 
 
@@ -41,7 +40,7 @@ def guarded(viewfunc):
         try:
             result = viewfunc(*args, **kwargs)
 
-            if isinstance(result, flask.Response):
+            if isinstance(result, Response):
                 return result
 
             if isinstance(result, tuple):
@@ -72,10 +71,9 @@ def guarded(viewfunc):
 @guarded
 def head_path(path=''):
     """Return 200 if path exists else 404"""
-    if filesystem.exists(path):
-        return '', 200
-    else:
-        return '', 404
+    visitor = get_visitor()
+    node = filesystem.get_node(visitor, path)
+    return '', 200 if node.exists else 404
 
 
 @app.route('/')
@@ -129,16 +127,17 @@ def get_path(path=''):
     elif 'storages' in request.args:
         return {'storages': store.storage.get_storages()}
 
-    node = get_existed_node(path)
+    node = filesystem.get_node(visitor, path)
+    if not node.exists:
+        raise Error(path + ' not found', 404)
 
     if 'meta' in request.args:
-        return node.get_meta(visitor)
-    elif 'transfer' in request.args:
-        return query_transfer_info(visitor, node)
+        return node.get_meta()
     elif node.is_dir:
-        return node.list(visitor, int(request.args.get('depth', 1)))
+        depth = int(request.args.get('depth', 1))
+        return node.list(depth)
     elif node.is_file:
-        return make_content_stream(visitor, node)
+        return node.get_content_stream()
 
 
 @app.route('/', methods=['PUT'])
@@ -333,15 +332,14 @@ def query_transfer_info(visitor, node):
 
 
 def get_visitor():
-    try:
-        token = request.headers['authorization'].split(' ')[1]
-        user = jwt.decode(token, conf.auth_pubkey, algorithm='RS512')
-        if not fsutil.get_home_dir(user).exist:
-            fsutil.create_home_dir_for(user)
-    except Exception as e:
-        user = {'username': 'guest'}
-        # DEBUG
-        user = {'username': 'root'}
+    user = {'username': 'root'}
+    #try:
+    #    token = request.headers['authorization'].split(' ')[1]
+    #    user = jwt.decode(token, conf.auth_pubkey, algorithm='RS512')
+    #    if not fsutil.get_home_dir(user).exist:
+    #        fsutil.create_home_dir_for(user)
+    #except Exception as e:
+    #    user = {'username': 'guest'}
     return User(user)
 
 
@@ -366,8 +364,8 @@ def get_content_size():
 
 if __name__ == '__main__':
     debug = True
-    if debug:
-        import test.setup
-    if not fsutil.initialized():
-        fsutil.create_root_dir()
+    #if debug:
+    #    import test.setup
+    if not filesystem.initialized():
+        filesystem.create_root_dir()
     app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=debug)

@@ -1,5 +1,4 @@
 import os
-import store
 
 
 auth_pubkey_fpath = os.path.join(os.path.expanduser('~'), '.ssh/id_rsa.pub')
@@ -17,8 +16,3 @@ KB = 1024
 MB = 1024 * KB
 CHUNK_SIZE = 4 * MB
 CHUNK_SIZE = 4 * KB
-
-
-if __name__ == '__main__':
-    print dir(store.storages.local)
-    print store.storages.local.template
