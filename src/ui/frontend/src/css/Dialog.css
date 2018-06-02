@@ -1,5 +1,5 @@
-.dialog-present {
-  filter: blur(4px);
+.dialog {
+  z-index: 999;
 }
 
 .dialog, .dialog-backdrop {

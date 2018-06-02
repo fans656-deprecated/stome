@@ -10,7 +10,10 @@ export default class Dialog extends React.Component {
   render() {
     if (!this.state.showing) return null;
     return (
-      <div className="dialog" onClick={this.hide}>
+      <div
+        className="dialog"
+        onClick={this.hide}
+      >
         <div className="dialog-ui" onClick={this.onContentClicked}>
           <div className="dialog-content">
             {this.props.children}
@@ -28,11 +31,17 @@ export default class Dialog extends React.Component {
   }
 
   show = () => {
+    this.eventid = window.on('keyup', this.onKeyUp);
     this.setState({showing: true});
   }
 
   hide = () => {
+    window.off(this.eventid);
     this.setState({showing: false});
+  }
+
+  onKeyUp = (ev) => {
+    if (ev.key === 'Escape') this.hide();
   }
 
   onContentClicked = (ev) => {

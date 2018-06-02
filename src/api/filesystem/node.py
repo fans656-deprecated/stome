@@ -1,25 +1,10 @@
-import os
-import json
-from collections import OrderedDict
-
 import db
-import util
-from error import Error
 
 
-def get_by_path(path):
-    meta = _get_meta(path)
+def get_node_by_path(path):
+    meta = db.getdb().node.find_one({'path': path}, {'_id': False})
     if not meta:
         return None
-    return _load_node(meta)
-
-
-def _get_by_path(path):
-    meta = _get_meta(path)
-    return _load_node(meta)
-
-
-def _load_node(meta):
     node_type = meta['type']
     if node_type == 'file':
         return FileNode(meta)
@@ -28,354 +13,23 @@ def _load_node(meta):
     elif node_type == 'link':
         return LinkNode(meta)
     else:
-        return None
+        assert 0, 'unsupported type {}'.format(node_type)
 
 
-def _get_meta(path):
-    return db.getdb().node.find_one({'path': path}, {'_id': False})
-
-
-#class Node(object):
-#
-#    def __init__(self, path, meta=None):
-#        if not meta:
-#            meta = db.getdb().node.find_one({'path': path}, {'_id': False})
-#        if meta:
-#            self.meta = meta
-#            self.exists = True
-#        else:
-#            self.meta = {
-#                'name': os.path.basename(path),
-#                'parent': get_parent_path(path),
-#            }
-#            self.exists = False
-#        self.meta['path'] = path
-#
-#    @property
-#    def path(self):
-#        return self.meta['path']
-#
-#    @property
-#    def name(self):
-#        return self.meta['name']
-#
-#    @property
-#    def type(self):
-#        return self.meta['type']
-#
-#    @property
-#    def mimetype(self):
-#        return self.meta['mimetype']
-#
-#    @type.setter
-#    def type(self, type):
-#        self.meta['type'] = type
-#
-#    @property
-#    def is_dir(self):
-#        return self.type == 'dir'
-#
-#    @property
-#    def is_root(self):
-#        return self.path == '/'
-#
-#    @property
-#    def is_file(self):
-#        return self.type == 'file'
-#
-#    @property
-#    def parent(self):
-#        return get_dir_node(self.meta['parent'])
-#
-#    @property
-#    def owner(self):
-#        return self.meta['owner']
-#
-#    @property
-#    def group(self):
-#        return self.meta['group']
-#
-#    @property
-#    def access(self):
-#        return self.meta['access']
-#
-#    @property
-#    def size(self):
-#        return self.meta['size']
-#
-#    @size.setter
-#    def size(self, size):
-#        self._serialize({'size': size})
-#
-#    @property
-#    def owner_readable(self):
-#        return bool(self.access & 0600)
-#
-#    @property
-#    def owner_writable(self):
-#        return bool(self.access & 0200)
-#
-#    @property
-#    def group_readable(self):
-#        return bool(self.access & 0060)
-#
-#    @property
-#    def group_writable(self):
-#        return bool(self.access & 0020)
-#
-#    @property
-#    def other_readable(self):
-#        return bool(self.access & 0006)
-#
-#    @property
-#    def other_writable(self):
-#        return bool(self.access & 0002)
-#
-#    @property
-#    def children(self):
-#        metas = db.getdb().node.find({'parent': self.path}, {'_id': False})
-#        return [Node(m['path'], m) for m in metas]
-#
-#    @property
-#    def md5(self):
-#        return self.meta['md5']
-#
-#    @property
-#    def as_ls_entry(self):
-#        meta = self.inherited_meta
-#        meta.update({
-#            'listable': self.is_dir,
-#        })
-#        return meta
-#
-#    @property
-#    def storage_ids(self):
-#        return self.meta.get('storage_ids') or self.parent.storage_ids
-#
-#    @property
-#    def content(self):
-#        return store.content.get(self.md5)
-#
-#    @property
-#    def inherited_meta(self):
-#        meta = dict(self.meta)
-#        meta.update({
-#            'storage_ids': self.storage_ids,
-#        })
-#        return meta
-#
-#    def create(self, user, meta=None):
-#        if self.exists:
-#            raise Existed(self)
-#        parent = self.parent
-#        if not parent:
-#            self.parent.create(user, meta)
-#        if not user.can_create(self):
-#            raise CantCreate(self)
-#        return self._create(user, meta)
-#
-#    def list(self, user, depth):
-#        if not user.can_read(self):
-#            raise CantRead(self)
-#        return list_directory(self, depth)
-#
-#    def chown(self, operator, username):
-#        return self.update_meta(operator, {'owner': username})
-#
-#    def chgrp(self, operator, group):
-#        return self.update_meta(operator, {'group': group})
-#
-#    def chmod(self, operator, mod):
-#        return self.update_meta(operator, {'access': mod})
-#
-#    def get_meta(self, user):
-#        if not self.exists:
-#            raise NotFound(self)
-#        if not user.can_read(self):
-#            raise CantRead(self)
-#        return self.inherited_meta
-#
-#    def update_meta(self, operator, meta, silent=False):
-#        if not meta:
-#            return
-#        if operator.own(self):
-#            self._serialize(update=meta)
-#        elif not silent:
-#            raise CantWrite(self)
-#        return self
-#
-#    def move(self, user, dst):
-#        if not user.can_remove(self):
-#            raise CantMove(self)
-#        dst.clone(self)
-#        src.remove()
-#
-#    def clone(self, user, src, silent=False):
-#        try:
-#            if self.exists:
-#                raise AlreadyExist(dst)
-#            if not src.exists:
-#                raise NotFound(src)
-#            if not user.can_write(dst.parent):
-#                raise CantWrite(dst)
-#            self.create(user, src.meta)
-#            if src.is_dir and user.can_read(src):
-#                for child in src.children:
-#                    dst = get_node(self.path + '/' + child.name)
-#                    dst._clone(user, child_src)
-#            return True
-#        except Exception as e:
-#            if not silent:
-#                raise e
-#            return False
-#
-#    def remove(self, operator, recursive=False, silent=False):
-#        if not self.exists:
-#            if silent:
-#                return
-#            else:
-#                raise NotExist(self)
-#        parent = self.parent
-#        if not operator.can_write(parent):
-#            if silent:
-#                return
-#            else:
-#                raise CantRemove(self)
-#        if self.is_file:
-#            self._remove_single()
-#        elif self.is_dir:
-#            if not recursive:
-#                if silent:
-#                    return
-#                else:
-#                    raise IsDir(self)
-#            for child in self.children:
-#                child.remove(operator, recursive, silent)
-#            self._remove_single()
-#
-#    def iter_content(self, visitor):
-#        if not visitor.can_read(self):
-#            raise CantRead(self)
-#        return self.content.iter()
-#
-#    def _inc_size(self, size):
-#        self.size += size
-#        if not self.is_root:
-#            self.parent._inc_size(size)
-#
-#    def _remove_single(self):
-#        db.getdb().node.remove({'path': self.path})
-#        self._inc_size(-self.size)
-#
-#    def _create(self, user, meta):
-#        node_type = meta.get('type')
-#        if node_type is None:
-#            raise Error('node creation need to specify type')
-#        if node_type == 'dir':
-#            size = 0
-#        elif node_type == 'file':
-#            size = meta.get('size')
-#        else:
-#            raise Error('node type {} is not supported'.format(node_type))
-#        username = user.username
-#        now = util.utc_now_str()
-#
-#        self.meta.update({
-#            'type': node_type,
-#            'owner': username,
-#            'group': username,
-#            'ctime': now,
-#            'mtime': now,
-#            'size': size,
-#        })
-#        if self.is_dir:
-#            self.meta.update({
-#                'access': 0775,
-#            })
-#        elif self.is_file:
-#            self.meta.update({
-#                'access': 0664,
-#                'md5': md5,
-#                'mimetype': mimetype or 'application/octet-stream'
-#            })
-#            self._add_instances()
-#        self.meta.update(meta or {})
-#        self.exists = True
-#        self._serialize(update=self.meta, upsert=True)
-#        self.parent._inc_size(size)
-#        return self
-#
-#    def _add_instances(self):
-#        content = self.content
-#        if not content.exists:
-#            content.create(self.size)
-#        for storage_id in self.storage_ids:
-#            content.add_instance(storage_id)
-#
-#    def _serialize(self, update=None, upsert=False):
-#        self.meta.update(update or {})
-#        db.getdb().node.update({'path': self.path}, self.meta, upsert=upsert)
-#
-#    def __nonzero__(self):
-#        return self.exists
-#
-#    def __repr__(self):
-#        return repr(self.meta)
-#
-#    def __str__(self):
-#        meta = dict(self.meta)
-#        if 'access' in meta:
-#            meta['access'] = '0{:03o}'.format(meta['access'])
-#
-#        def take(field):
-#            d[field] = meta.get(field, '???')
-#
-#        d = OrderedDict()
-#        take('path')
-#        take('type')
-#        take('owner')
-#        take('group')
-#        take('access')
-#        take('name')
-#        take('parent')
-#        take('ctime')
-#        take('mtime')
-#        for k, v in meta.items():
-#            if k not in d:
-#                d[k] = v
-#        return 'Node({})'.format(json.dumps(d, indent=2))
-
-
-def get_parent_path(path):
-    if path == '/':
-        return ''
-    path = '/'.join(path.split('/')[:-1])
-    if not path.startswith('/'):
-        path = '/' + path
-    return path
-
-
-def list_directory(node, depth):
-    dirs = []
-    files = []
-    for child in node.children:
-        if child.is_dir:
-            dirs.append(get_list_result(child, depth - 1))
-        elif child.is_file:
-            files.append(child.as_ls_entry)
-    res = node.as_ls_entry
-    res.update({
-        'dirs': dirs,
-        'files': files,
-    })
-    return res
-
-
-def get_list_result(node, depth):
-    if depth:
-        return list_directory(node, depth)
+def make_node_by_meta(meta):
+    node_type = meta['type']
+    if node_type == 'dir':
+        node = DirNode(meta)
+    elif node_type == 'file':
+        node = FileNode(meta)
+    elif node_type == 'link':
+        node = LinkNode(meta)
     else:
-        return node.as_ls_entry
+        raise TypeError('unrecognized node type: ' + node_type)
+    if node.size:
+        node.parent.size += node.size
+    node.serialize()
+    return node
 
 
 class Node(object):
@@ -395,23 +49,70 @@ class Node(object):
     """
 
     def __init__(self, meta):
-        self.meta = meta
+        self._meta = meta
+
+    @property
+    def meta(self):
+        meta = dict(self._meta)
+        meta.update({
+            'listable': self.listable,
+            'storage_ids': self.storage_ids,
+        })
+        return meta
+
+    @property
+    def size(self):
+        return self._meta['size']
+
+    @size.setter
+    def size(self, new_size):
+        parent = self.parent
+        if parent:
+            parent.size += new_size - self.size
+        self.update_meta({'size': new_size})
 
     @property
     def path(self):
-        return self.meta['path']
+        return self._meta['path']
 
     @property
     def name(self):
-        return self.meta['name']
+        return self._meta['name']
 
     @property
     def parent_path(self):
-        return self.meta['parent_path']
+        return self._meta['parent_path']
+
+    @property
+    def owner(self):
+        return self._meta['owner']
+
+    @property
+    def group(self):
+        return self._meta['group']
+
+    @property
+    def access(self):
+        return self._meta['access']
+
+    @property
+    def ctime(self):
+        return self._meta['ctime']
+
+    @property
+    def mtime(self):
+        return self._meta['mtime']
+
+    @property
+    def storage_ids(self):
+        ret = self._meta.get('storage_ids')
+        if not ret:
+            ret = self.parent.storage_ids
+        return ret
 
     @property
     def parent(self):
-        return _get_by_path(self.parent_path)
+        return get_node_by_path(self.parent_path)
 
     @property
     def listable(self):
@@ -421,8 +122,25 @@ class Node(object):
     def has_content(self):
         return False
 
+    def delete(self):
+        self.parent.size -= self.size
+        db.getdb().node.remove({'path': self.path})
+
+    def chmod(self, access):
+        self.update_meta({'access': access})
+
+    def chown(self, username):
+        self.update_meta({'owner': username})
+
+    def chgrp(self, groupname):
+        self.update_meta({'group': groupname})
+
+    def update_meta(self, meta):
+        self._meta.update(meta)
+        self.serialize()
+
     def serialize(self):
-        db.getdb().node.update({'path': self.path}, self.meta, upsert=True)
+        db.getdb().node.update({'path': self.path}, self._meta, upsert=True)
 
 
 class DirNode(Node):
@@ -434,6 +152,12 @@ class DirNode(Node):
     def listable(self):
         return True
 
+    @property
+    def children(self):
+        r = db.getdb().node.find({'parent_path': self.path}, {'path': 1, '_id': 0})
+        child_paths = [c['path'] for c in r]
+        return map(get_node_by_path, child_paths)
+
 
 class RootNode(DirNode):
 
@@ -442,12 +166,12 @@ class RootNode(DirNode):
         return self
 
 
-class FileNode(object):
+class FileNode(Node):
 
     def __init__(self, meta):
         super(FileNode, self).__init__(meta)
         if not self:
-            self.meta.update({
+            self._meta.update({
                 'type': 'file',
             })
 
@@ -460,7 +184,7 @@ class FileNode(object):
         return store.content.get(md5)
 
     def create(self, size, md5, mimetype):
-        self.meta.update({
+        self._meta.update({
             'size': size,
             'md5': md5,
             'mimetype': mimetype,
@@ -471,11 +195,11 @@ class FileNode(object):
         super(FileNode, self).create()
 
 
-class LinkNode(object):
+class LinkNode(Node):
 
     def __init__(self, meta):
         super(LinkNode, meta)
-        self.target_node = _get_by_path(meta['target_path'])
+        self.target_node = get_node_by_path(meta['target_path'])
 
     @property
     def listable(self):

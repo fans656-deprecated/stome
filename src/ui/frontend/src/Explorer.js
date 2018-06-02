@@ -13,6 +13,7 @@ import vpsUpload from './uploader/vps'
 import qiniuUpload from './uploader/qiniu'
 
 import conf from './conf'
+import api from './api'
 
 import { getTree, Node } from './node'
 import { joinPaths, splitBaseName, calcMD5 } from './util'
@@ -35,7 +36,6 @@ class Explorer extends React.Component {
     window.upload = this.openFileSelection;
     const tree = await getTree(this.props.rootPath, this);
     await tree.setCurrentPath(this.props.currentPath);
-    window.root = tree.root;
     this.setState({tree: tree});
   }
 
@@ -69,7 +69,8 @@ class Explorer extends React.Component {
             currentDir={this.state.tree.currentDir}
             currentItem={this.state.tree.currentItem}
             onClick={this.onItemClickedInContent}
-            onItemChange={() => this.setState({})}
+            onItemDeleted={this.onItemDeleted}
+            onItemChange={this.update}
           />
           <ItemPanel node={tree.currentItem || tree.currentDir}/>
         </main>
@@ -107,9 +108,22 @@ class Explorer extends React.Component {
         this.openFile(node);
       }
     } else {
-      this.state.tree.currentItem = node;
+      this.setCurrentItem(node);
     }
-    this.setState({});
+    this.update();
+  }
+
+  setCurrentItem = (node) => {
+    this.state.tree.setCurrentItem(node);
+    this.update();
+  }
+
+  onItemDeleted = async (node) => {
+    const tree = this.state.tree;
+    if (node === tree.currentItem) {
+      tree.currentItem = null;
+    }
+    this.update();
   }
 
   onNodeToggledInNav = () => {
@@ -117,6 +131,7 @@ class Explorer extends React.Component {
   }
 
   changeCurrentDir = (node) => {
+    this.state.tree.setCurrentItem(null);
     this.state.tree.setCurrentDir(node);
     this.props.history.push(node.meta.path);
   }
@@ -163,28 +178,43 @@ class Explorer extends React.Component {
     name = name || file.name;
     const path = joinPaths(dirpath, name);
     const dir = await this.state.tree.findByPath(dirpath);
+    let node = dir.findChildByName(name);
+    if (node) {
+      this.setCurrentItem(node);
+      return;
+    }
 
-    const node = makeTransferNode(dir, path, name);
+    node = makeTransferNode(dir, path, name);
     dir.addFileChild(node);
 
     const md5 = await calcMD5(file, node.onHashProgress);
-
-    let upload = null;
-    if (true) {  // upload to qiniu
-      upload = qiniuUpload;
-    } else {  // upload to server
-      upload = vpsUpload;
-    }
-
-    upload({
-      path: path,
-      dirpath: dirpath,
-      name: name,
+    await api.post(path, {
+      op: 'touch',
       md5: md5,
-      file: file,
-      node: node,
+      size: file.size,
+      mimetype: file.type,
     });
-    this.update();
+    await dir.update();
+    node = await dir.findChildByName(name);
+    await node.updateParent();
+    console.log(node);
+
+    //let upload = null;
+    //if (true) {  // upload to qiniu
+    //  upload = qiniuUpload;
+    //} else {  // upload to server
+    //  upload = vpsUpload;
+    //}
+
+    //upload({
+    //  path: path,
+    //  dirpath: dirpath,
+    //  name: name,
+    //  md5: md5,
+    //  file: file,
+    //  node: node,
+    //});
+    //this.update();
   }
 
   update = () => {

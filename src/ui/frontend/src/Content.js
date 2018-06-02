@@ -1,14 +1,14 @@
-import React from 'react';
-import IconNewFolder from 'react-icons/lib/md/create-new-folder';
-import IconUpload from 'react-icons/lib/fa/upload';
-import IconDelete from 'react-icons/lib/md/delete';
-import IconEdit from 'react-icons/lib/ti/edit';
+import React from 'react'
 
-import Items from './Items';
-import Dialog from './Dialog';
-import {IconButton} from './Button';
+import Items from './Items'
+import ContentPanel from './ContentPanel'
 
 export default class Content extends React.Component {
+  constructor(props) {
+    super(props);
+    window.on('keyup', this.onKeyUp);
+  }
+
   render() {
     return (
       <div className="content"
@@ -22,69 +22,25 @@ export default class Content extends React.Component {
           onClick={this.props.onClick}
           onMouseDown={(ev) => ev.preventDefault()}
         />
-        <Panel
+        <ContentPanel
           item={this.props.currentItem}
+          currentDir={this.props.currentDir}
+          deleteItem={this.deleteItem}
           onItemChange={this.props.onItemChange}
         />
       </div>
     );
   }
 
-  onDrop = (ev) => {
-    console.log(ev);
-  }
-}
-
-class Panel extends React.Component {
-  render() {
-    const item = this.props.item;
-    return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <IconButton
-            title="Upload"
-            tabindex="1"
-            icon={IconUpload}
-            onClick={() => window.upload()}
-          />
-          <IconButton
-            title="New folder"
-            tabindex="2"
-            icon={IconNewFolder}
-            onClick={this.createDir}
-          />
-        </div>
-        {item && <div>
-          <IconButton
-            title="Edit"
-            icon={IconEdit}
-            onClick={this.editItem}
-          />
-          <IconButton
-            title="Delete"
-            icon={IconDelete}
-            onClick={this.deleteItem}
-          />
-        </div>}
-        <Dialog ref={ref => this.dialog = ref}>
-          {null}
-        </Dialog>
-      </div>
-    );
+  onKeyUp = (ev) => {
+    if (ev.key === 'Delete') {
+      this.deleteItem(this.props.currentItem);
+    }
   }
 
-  deleteItem = async () => {
-    const item = this.props.item;
+  deleteItem = async (item) => {
     await item.delete();
+    this.props.onItemDeleted(item);
     this.props.onItemChange();
-  }
-
-  createDir = () => {
-    //this.props.onItemChange();
   }
 }

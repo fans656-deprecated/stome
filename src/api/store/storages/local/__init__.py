@@ -2,13 +2,12 @@ import os
 
 import db
 import conf
-import node
 import store
 
 
 template = {
     'type': 'local',
-    'name': 'vultr-local',
+    'name': 'vultr',
     'root': '~/.stome-files',
 }
 

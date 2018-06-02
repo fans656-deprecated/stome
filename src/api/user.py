@@ -1,3 +1,6 @@
+import os
+
+
 class User(object):
 
     def __init__(self, meta):
@@ -16,7 +19,7 @@ class User(object):
 
     @property
     def home_path(self):
-        return '/home' + self.username
+        return os.path.join('/home', self.username)
 
     @property
     def is_root(self):

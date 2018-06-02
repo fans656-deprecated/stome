@@ -1,8 +1,6 @@
 import React from 'react'
 
 const todo = `\
-Directory size
-
 File thumbnail
   this can be done on server side like GET /girl/img/blue.jpg?thumbnail=64x64
   then on client side, query if imgage/jpeg etc
@@ -15,11 +13,19 @@ Move/Copy (drag / ctrl-c)
 
 Selection rect
 
+Shift/Ctrl selection
+
 Image view
+
+Arrow keys to navigate selection
+
+====================== DONE
 
 <Del> to delete
 
-Arrow keys to navigate selection
+Global upload function
+
+Directory size
 `;
 
 const Todo = () => (

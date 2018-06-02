@@ -1,6 +1,7 @@
 from filesystem.access import get_node
 from filesystem.fsutil import (
     initialized,
+    initialize,
     erase_everything,
     create_root_dir,
     create_public_dir,

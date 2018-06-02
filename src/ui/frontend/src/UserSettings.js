@@ -12,7 +12,7 @@ export default class UserSettings extends React.Component {
             <StorageSettings/>
           </Tab>
           <Tab name="Other">
-            <p>Other</p>
+            {null}
           </Tab>
         </Tabs>
       </div>

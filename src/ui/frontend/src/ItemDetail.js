@@ -10,7 +10,7 @@ export default class Detail extends React.Component {
       || node.transfer.status === 'uploading';
     if (createdOnRemote) {
       detail = detail.concat([
-        ['Name', meta.name],
+        ['Name', meta.name || '/'],
         ['Path', meta.path],
         ['Owner', meta.owner],
         ['Group', meta.group],
@@ -48,7 +48,9 @@ function accessToString(access) {
 }
 
 function humanSize(size) {
-  if (size < KB) {
+  if (size === 0) {
+    return '' + size;
+  } else if (size < KB) {
     return size + 'B';
   } else if (size < MB) {
     return (size / KB).toFixed(0) + 'KB';

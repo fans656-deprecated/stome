@@ -9,10 +9,10 @@ from flask import request, Response, Flask
 
 import conf
 import util
-#import store
-import error
+import store
 import filesystem
 from user import User
+from error import Error, NotFound, Conflict
 
 
 app = Flask(__name__, template_folder='.')
@@ -29,8 +29,10 @@ def guarded(viewfunc):
         Return a dict like {'templates': []}, which will be JSONified
 
         Return a dict and a status code as tuple like
-        ({'detail': 'not found'}, 404), former will be JSONfied,
+        ({'reason': 'not found'}, 404), former will be JSONfied,
         later will be used as status code
+
+        Return None, then {'errno': 0} will be returned
 
         Raise a error.Error exception like Error('not found', 404), which
         will be turned into response like {'detail': 'not found'}, 404
@@ -47,10 +49,12 @@ def guarded(viewfunc):
                 status_code = result[1]
                 result = result[0]
             else:
+                if result is None:
+                    result = {'errno': 0}
                 status_code = 200
 
             if isinstance(result, dict):
-                ret = json.dumps(result)
+                ret = json.dumps(result, indent=2)
             elif isinstance(result, (str, unicode)):
                 ret = result
             else:
@@ -58,7 +62,7 @@ def guarded(viewfunc):
 
             return ret, status_code
 
-        except error.Error as err:
+        except Error as err:
             return json.dumps(err.result), err.errno
         except Exception as e:
             traceback.print_exc()
@@ -120,6 +124,7 @@ def get_path(path=''):
 
     visitor = get_visitor()
 
+    # TODO: access control
     if 'storage-templates' in request.args:
         return {'templates': store.storage.get_templates()}
     elif 'storage' in request.args:
@@ -128,12 +133,12 @@ def get_path(path=''):
         return {'storages': store.storage.get_storages()}
 
     node = filesystem.get_node(visitor, path)
-    if not node.exists:
-        raise Error(path + ' not found', 404)
+    if not node:
+        raise NotFound(path)
 
     if 'meta' in request.args:
-        return node.get_meta()
-    elif node.is_dir:
+        return node.meta
+    elif node.listable:
         depth = int(request.args.get('depth', 1))
         return node.list(depth)
     elif node.is_file:
@@ -154,12 +159,7 @@ def put_path(path='/'):
             "root": "~/.stome-files"
         }
 
-    + Create/Update file/directory metadata
-
-        PUT /img?meta
-        {
-            "type": "dir"
-        }
+    + Update file/directory metadata
 
         PUT /img/girl.jpg?meta
         {
@@ -169,23 +169,23 @@ def put_path(path='/'):
             "mimetype": "image/jpeg"
         }
 
-    # + Upload file
+    + Upload file
 
-    #     PUT /img/girl.jpg
-    #     <file-content>
+        PUT /img/girl.jpg
+        <file-content>
 
-    #     Parameters:
+        Parameters:
 
-    #         md5: (required) full md5
-    #         size: (required) total file size
-    #         chunk-md5: (optional) chunk md5
-    #         chunk-offset: (optional) chunk byte offset in file
+            md5: (required) full md5
+            size: (required) total file size
+            chunk-md5: (optional) chunk md5
+            chunk-offset: (optional) chunk byte offset in file
     """
     visitor = get_visitor()
     if 'storage' in request.args:
         return handle_upsert_storage(visitor)
     elif 'meta' in request.args:
-        return handle_upsert_node_meta(visitor, path)
+        return handle_update_node_meta(visitor, path)
     #else:
     #    return handle_upsert_node(visitor, path)
 
@@ -194,21 +194,29 @@ def put_path(path='/'):
 @guarded
 def post_path(path):
     """
-    1. Rename file/directory
+    + Create directory
+
+        POST /img?op=mkdir
+
+    + Create file
+
+        POST /img/girl.jpg?op=touch&md5=2b61c6d1ac994fc5ae83187928131552&size=32768
+
+    + Rename file/directory
 
         POST /img/girl.jpg?op=mv
         {
             "to": "t.jpeg"
         }
 
-    2. Move file/directory
+    + Move file/directory
 
         POST /img/girl.jpg?op=mv
         {
             "to": "/public/girl.jpg"
         }
 
-    3. Copy file/directory
+    + Copy file/directory
 
         POST /img/girl.jpg?op=cp
         {
@@ -216,13 +224,20 @@ def post_path(path):
         }
     """
     visitor = get_visitor()
+    node = filesystem.get_node(visitor, path)
     op = request.args.get('op')
-    src = get_existed_node(path)
-    dst = get_dst_node(src, request.args.get('to'))
-    if op == 'mv':
-        src.move(user, dst)
-    elif op == 'cp':
-        dst.clone(user, src)
+    if op == 'touch':
+        size = int(request.args['size'])
+        md5 = request.args['md5']
+        mimetype = request.args['mimetype']
+        node.create_as_file(size, md5, mimetype)
+    elif op == 'mkdir':
+        node.create_as_dir()
+    #dst = get_dst_node(src, request.args.get('to'))
+    #if op == 'mv':
+    #    src.move(user, dst)
+    #elif op == 'cp':
+    #    dst.clone(user, src)
 
 
 @app.route('/<path:path>', methods=['DELETE'])
@@ -238,13 +253,14 @@ def delete_path(path):
 
         DELETE /20180402_231528_2039_UTC?storage
     """
+    visitor = get_visitor()
     if 'storage' in request.args:
-        storage = store.get_storage(path)
+        storage = store.storage.get(path)
         if not storage.exist:
             raise NotFound(path)
         storage.delete()
     else:
-        get_existed_node(path).remove(get_visitor(), recursive=True)
+        filesystem.get_node(visitor, path).delete()
 
 
 @app.route('/', methods=['OPTIONS'])
@@ -286,17 +302,11 @@ def handle_upsert_storage(visitor):
     return storage.meta
 
 
-def handle_upsert_node_meta(visitor, path):
+def handle_update_node_meta(visitor, path):
+    node = filesystem.get_node(visitor, path)
     meta = request.json
-    node_type = meta['type']
-    if node_type == 'dir':
-        node = get_dir_node(path)
-    elif node_type == 'file':
-        node = get_file_node(path)
-    if node.exists:
-        node.create(visitor)
-    node.update_meta(visitor, meta)
-    return node.inherited_meta
+    node.update_meta(meta)
+    # TODO: update meta
 
 
 def handle_upsert_node(visitor, path):
@@ -346,7 +356,7 @@ def get_visitor():
 def get_dst_node(src, to):
     if not to.startswith('/'):
         to = src.parent.path + '/' + to
-    return get_node(to)
+    return filesystem.get_node(to)
 
 
 def make_content_stream(visitor, node):
@@ -364,8 +374,9 @@ def get_content_size():
 
 if __name__ == '__main__':
     debug = True
-    #if debug:
-    #    import test.setup
+    if debug:
+        from tests.prepare import init
+        init()
     if not filesystem.initialized():
-        filesystem.create_root_dir()
+        filesystem.initialize()
     app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=debug)

@@ -21,12 +21,14 @@ def use_new():
 
 
 if __name__ == '__main__':
+    from tests.prepare import *
+
     db = getdb()
 
     print '=' * 40, 'dir node'
     r = db.node.find({'type': 'dir'})
     for x in r:
-        print x
+        print_node_meta(x)
 
     print '=' * 40, 'file node'
     r = db.node.find({'type': 'file'})

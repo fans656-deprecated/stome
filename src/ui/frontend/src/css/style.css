@@ -64,12 +64,17 @@ button.icon {
   min-width: 0;
 }
 
+.button-group {
+  padding: 0 0.2em;
+}
+
 input {
   background: #ddd;
   outline: none;
   border: none;
   padding: .2em;
   margin: .2em;
+  width: 22em;
 }
 
 input.long {

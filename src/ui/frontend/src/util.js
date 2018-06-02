@@ -70,9 +70,18 @@ export async function fetchMeta(path) {
 
 export async function fetchDir(path) {
   const params = qs.stringify({depth: 1});
-  const res = await fetch(conf.api_origin + path + '?' + params);
-  const data = await res.json();
-  return data;
+  try {
+    const res = await fetch(conf.api_origin + path + '?' + params);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    if (e instanceof TypeError) {
+      console.log(`Fetch path ${path} failed`);
+    } else {
+      console.log(e);
+    }
+    throw new Error('exit');
+  }
 }
 
 export async function fetchTransfer(path) {
@@ -105,6 +114,7 @@ export async function fetchJSON(method, path, data) {
 export function joinPaths(...paths) {
   let res = '';
   for (let path of paths) {
+    if (!path) continue;
     if (path.startsWith('/')) {
       res = path;
     } else {
@@ -116,11 +126,25 @@ export function joinPaths(...paths) {
 }
 
 export function splitBaseName(path) {
-  let name = ''
+  let name = '';
   if (!path.endsWith('/')) {
     const parts = path.split('/');
     name = parts.pop();
     path = joinPaths(...parts);
   }
   return [path, name];
+}
+
+export function newName(existedNames) {
+  const basename = 'noname';
+  if (existedNames.indexOf(basename) === -1) {
+    return basename;
+  } else {
+    for (let i = 2; ; ++i) {
+      const name = basename + '' + i;
+      if (existedNames.indexOf(name) === -1) {
+        return name;
+      }
+    }
+  }
 }

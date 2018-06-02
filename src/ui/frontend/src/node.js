@@ -31,7 +31,7 @@ export class Node {
     this.parent = parent;
     this.tree = tree;
     this.children = [];
-    this.loaded = !meta.listable;
+    this.loaded = false;
   }
 
   /**
@@ -60,6 +60,10 @@ export class Node {
     this.files.push(node);
   }
 
+  findChildByName = (name) => {
+    return this.children.find(f => f.meta.name === name);
+  }
+
   /**
    * Collapse this node if `toggled` === false else uncollapse
    * @param {Boolean} toggled - false for collapse, true for uncollapse
@@ -73,13 +77,16 @@ export class Node {
   /**
    * Update node's info and descendants' structure.
    */
-  update = async () => {
+  update = async (recursive) => {
     if (this.meta.listable) {
       this.meta = await fetchDir(this.meta.path);
       if (this.loaded) {
         await this._updateStructure();
       } else {
         await this._load();
+      }
+      if (recursive) {
+        this.children.forEach(c => c.update(recursive));
       }
     } else {
       this.meta = await fetchMeta(this.meta.path);
@@ -114,8 +121,13 @@ export class Node {
    * @param {Function} callback - 
    */
   findByPath = async (path, callback) => {
-    if (!path) return;
-    return this._findByPathNames(path.split('/'), callback);
+    if (!path) return null;
+    const lastFoundNode = await this._findByPathNames(path.split('/'), callback);
+    if (lastFoundNode && lastFoundNode.meta.path === path) {
+      return lastFoundNode;
+    } else {
+      return null;
+    }
   }
 
   onHashProgress = (offset, size) => {
@@ -155,30 +167,31 @@ export class Node {
   }
 
   _findByPathNames = async (names, callback) => {
-    const pathEndReached = names.length === 0;
-    const notOnPath = this.meta.name !== names[0];
-
-    if (pathEndReached) return null;
-    if (notOnPath) return null;
+    if (this.meta.name !== names[0]) return null;  // this node is not on path
 
     if (!this.loaded) await this._load();
-    const last = names.length === 1;
-    if (callback) await callback(this, last);
 
-    names = names.splice(1);
+    const isLast = names.length === 1;
+    if (callback) await callback(this, isLast);
+    if (isLast) return this;  // found last
 
-    let ret = this;
-    for (let child of this.dirs) {
-      ret = await child._findByPathNames(names, callback) || ret;
+    if (this.meta.listable) {
+      names = names.splice(1);
+      for (let child of this.children) {
+        const node = await child._findByPathNames(names, callback);
+        if (node) return node;
+      }
     }
-    return ret;
+    return null;
   }
 
   _load = async () => {
     if (this.loaded) return;
-    this.dirs = await this._makeDirNodes();
-    this.files = this._makeFileNodes();
-    this.children = this.dirs.concat(this.files);
+    if (this.meta.listable) {
+      this.dirs = await this._makeDirNodes();
+      this.files = this._makeFileNodes();
+      this.children = this.dirs.concat(this.files);
+    }
     this.loaded = true;
   }
 
@@ -227,11 +240,13 @@ class Tree {
    * Uncollapse directories along from root
    */
   setCurrentPath = async (path) => {
-    const node = await this.root.findByPath(path, async (node, last) => {
+    let lastFoundNode = null;
+    await this.root.findByPath(path, async (node) => {
+      lastFoundNode = node;
       await node.toggle(true);
     });
-    this.setCurrentDir(node);
-    return node;
+    this.setCurrentDir(lastFoundNode);
+    return lastFoundNode;
   }
 
   /**
@@ -241,7 +256,12 @@ class Tree {
     this.currentDir = node;
   }
 
+  setCurrentItem = (node) => {
+    this.currentItem = node;
+  }
+
   findByPath = async (path) => {
+    if (path === '/') return this.root;
     return await this.root.findByPath(path);
   }
 }

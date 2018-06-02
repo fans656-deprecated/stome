@@ -1,31 +1,58 @@
 import os
 
 import util
-from error import Error, PermissionDenied
-from filesystem.node import get_by_path, Node, DirNode, FileNode
+from error import Error, PermissionDenied, Conflict
+from filesystem.node import get_node_by_path, make_node_by_meta, Node
 
 
 def get_node(visitor, path):
+    path = util.normalized_path(path)
     return AccessControlledNode(visitor, path)
 
 
 class AccessControlledNode(object):
+    """
+    Properties:
 
-    def __init__(self, visitor, path_or_node, silent=False):
+        + exists
+        + readable
+        + writable
+        + executable
+        + owned
+        + parent
+        + children
+
+    Operations:
+
+        + create_as_dir
+        + create_as_file
+        + create_as_link
+        + get_meta
+        + list
+        + get_content_stream
+        + chmod
+        + chown
+        + chgrp
+    """
+
+    def __init__(self, visitor, path_or_node):
         self.visitor = visitor
         if isinstance(path_or_node, Node):
             node = path_or_node
             path = node.path
         else:
             path = path_or_node
-            node = get_by_path(path)
+            node = get_node_by_path(path)
         self.path = path
         self.node = node
-        self.silent = silent
 
     @property
     def exists(self):
         return self.node is not None
+
+    @property
+    def listable(self):
+        return self.readable and self.node and self.node.listable
 
     @property
     def readable(self):
@@ -67,6 +94,11 @@ class AccessControlledNode(object):
         return False
 
     @property
+    def owned(self):
+        visitor = self.visitor
+        return visitor.is_root or self.node.owner == visitor.username
+
+    @property
     def owner_readable(self):
         return self.node.access & 0400
 
@@ -104,59 +136,130 @@ class AccessControlledNode(object):
 
     @property
     def parent(self):
-        return AccessControlledNode(self.visitor, self.node.parent_path)
+        parent_path = self.node.parent_path if self.node else os.path.dirname(self.path)
+        return AccessControlledNode(self.visitor, parent_path)
 
     @property
     def children(self):
-        return [AccessControlledNode(self.visitor, child)
-                for child in self.node.children]
+        nodes = [
+            AccessControlledNode(self.visitor, child)
+            for child in self.node.children
+        ]
+        return filter(bool, nodes)
+
+    @property
+    def subdirs(self):
+        return [c for c in self.children if c.listable]
+
+    @property
+    def files(self):
+        return [c for c in self.children if not c.listable]
+
+    @property
+    def meta(self):
+        return self.node.meta
 
     def create_as_dir(self):
-        parent = self.parent
-        if not parent:
-            parent.create_as_dir()
-        if not parent.writable:
-            raise PermissionDenied(self.path)
+        self._prepare_node_creation()
         self._create_as_dir()
 
-    def get_meta(self):
-        pass
+    def create_as_file(self, size, md5, mimetype):
+        self._prepare_node_creation()
+        self._create_as_file(size, md5, mimetype)
+
+    def delete(self):
+        if not self:
+            raise NotFound(self.path)
+        parent = self.parent
+        if not parent or not parent.writable:  # bool(root.parent) == False
+            raise PermissionDenied(self.path)
+        self._delete()
 
     def list(self, depth):
-        node = self.node
-        # TODO: access control
-        if not node.listable:
-            raise Error(node.path + ' is not a directory')
-        for child in self.children:
-            pass
+        if not self.readable:
+            return None
+        meta = self.node.meta
+        if self.listable and depth:
+            meta.update({
+                'dirs': [d.list(depth - 1) for d in self.subdirs],
+                'files': [f.node.meta for f in self.files],
+            })
+        return meta
 
     def get_content_stream(self):
         node = self.node
         if not node.has_content:
-            raise Error(node.path + ' is not file')
+            raise ResourceError('Not file', self.path)
+
+    def update_meta(self, meta):
+        # TODO: access control
+        self.node.update_meta(meta)
 
     def chmod(self, access):
-        pass
+        if not self.owned:
+            raise PermissionDenied(self.path)
+        self.node.chmod(access)
+
+    def chown(self, username):
+        if not self.owned:
+            raise PermissionDenied(self.path)
+        self.node.chown(username)
+
+    def chgrp(self, groupname):
+        if not self.owned:
+            raise PermissionDenied(self.path)
+        self.node.chgrp(groupname)
+
+    def _delete(self):
+        self.node.delete()
 
     def _create_as_dir(self):
-        meta = _make_meta(self.visitor.username, self.path)
+        meta = self._make_meta()
         meta.update({
             'type': 'dir',
-            'access': self.parent.access,
+            'size': 0,
         })
-        self.node = DirNode(meta)
-        self.node.serialize()
+        self.node = make_node_by_meta(meta)
         return self
 
+    def _create_as_file(self, size, md5, mimetype):
+        meta = self._make_meta()
+        meta.update({
+            'type': 'file',
+            'size': size,
+            'md5': md5,
+            'mimetype': mimetype,
+            'storage_ids': self.parent.node.storage_ids,
+        })
+        self.node = make_node_by_meta(meta)
+        return self
 
-def _make_meta(username, path):
-    now = util.utc_now_str()
-    return {
-        'path': path,
-        'name': os.path.basename(path),
-        'parent_path': os.path.dirname(path),
-        'owner': username,
-        'group': username,
-        'ctime': now,
-        'mtime': now,
-    }
+    def _prepare_node_creation(self):
+        if self.exists:
+            raise Conflict(self.path)
+        parent = self.parent
+        if not parent:
+            parent.create_as_dir()
+        return parent
+
+    def _make_meta(self):
+        path = self.path
+        username = self.visitor.username
+        now = util.utc_now_str()
+        parent = self.parent
+        return {
+            'path': path,
+            'name': os.path.basename(path),
+            'parent_path': os.path.dirname(path),
+            'owner': username,
+            'group': username,
+            'ctime': now,
+            'mtime': now,
+            'access': parent.node.access,
+        }
+
+    def __nonzero__(self):
+        return self.exists
+
+    def __repr__(self):
+        return 'ANode{{{}}}'.format(self.path)

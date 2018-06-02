@@ -1,6 +1,6 @@
 .edit-label {
   display: inline-block;
-  width: 6em;
+  min-width: 6em;
 }
 
 .edit {
