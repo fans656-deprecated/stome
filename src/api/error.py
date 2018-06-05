@@ -23,17 +23,19 @@ class ResourceError(Error):
 
 class PermissionDenied(ResourceError):
 
-    def __init__(self, path):
-        super(PermissionDenied, self).__init__('Permission denied', path, 401)
+    def __init__(self, resource):
+        super(PermissionDenied, self).__init__(
+            'Permission denied', resource, 401
+        )
 
 
 class NotFound(ResourceError):
 
-    def __init__(self, path):
-        super(NotFound, self).__init__('Not found', path, 404)
+    def __init__(self, resource):
+        super(NotFound, self).__init__('Not found', resource, 404)
 
 
 class Conflict(ResourceError):
 
-    def __init__(self, path):
-        super(Conflict, self).__init__('Conflict', path, 409)
+    def __init__(self, resource):
+        super(Conflict, self).__init__('Conflict', resource, 409)

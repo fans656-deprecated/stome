@@ -1,4 +1,5 @@
 import db
+import store
 
 
 def get_node_by_path(path):
@@ -40,7 +41,7 @@ class Node(object):
 
         path (unicode) - The entity's absolute path, e.g. '/img/girl/blue.jpg'
         name (unicode) - The entity's name, e.g. 'blue.jpg'
-        parent_path (unicode) - The entity's parent's absolute path, e.g. '/img/girl'
+        parent_path (unicode) - The entity's parent path, e.g. '/img/girl'
         owner (unicode) - Owner's username, e.g. 'fans656'
         group (unicode) - Group name, e.g. 'fans656'
         access (int) - Access control like Linux, e.g. 0775 => rwxrwxr-x
@@ -123,6 +124,7 @@ class Node(object):
         return False
 
     def delete(self):
+        print 'Node.delete', self
         self.parent.size -= self.size
         db.getdb().node.remove({'path': self.path})
 
@@ -145,54 +147,52 @@ class Node(object):
 
 class DirNode(Node):
 
-    def __init__(self, meta):
-        super(DirNode, self).__init__(meta)
-
     @property
     def listable(self):
         return True
 
     @property
     def children(self):
-        r = db.getdb().node.find({'parent_path': self.path}, {'path': 1, '_id': 0})
+        r = db.getdb().node.find(
+            {'parent_path': self.path}, {'path': 1, '_id': 0}
+        )
         child_paths = [c['path'] for c in r]
         return map(get_node_by_path, child_paths)
 
 
-class RootNode(DirNode):
-
-    @property
-    def parent(self):
-        return self
-
-
 class FileNode(Node):
 
-    def __init__(self, meta):
-        super(FileNode, self).__init__(meta)
-        if not self:
-            self._meta.update({
-                'type': 'file',
-            })
-
     @property
-    def has_content(self):
-        return True
-
-    @property
-    def content(self):
-        return store.content.get(md5)
-
-    def create(self, size, md5, mimetype):
-        self._meta.update({
-            'size': size,
-            'md5': md5,
-            'mimetype': mimetype,
+    def meta(self):
+        meta = super(FileNode, self).meta
+        meta.update({
+            'contents': [c.meta for c in self.contents],
         })
-        content = self.content
-        for storage in self.parent.storages:
-            content.add_storage(storage)
-        super(FileNode, self).create()
+        return meta
+
+    @property
+    def md5(self):
+        return self._meta['md5']
+
+    @property
+    def contents(self):
+        return [
+            store.content.get(self.md5, storage_id)
+            for storage_id in self.storage_ids
+        ]
+
+    def delete(self):
+        print 'FileNode.delete', self.contents
+        for content in self.contents:
+            content.ref_count -= 1
+        super(FileNode, self).delete()
+
+    def add_content(self, storage_id):
+        content = store.content.get(self.md5, storage_id)
+        if content:
+            content.ref_count += 1
+        else:
+            content.create()
 
 
 class LinkNode(Node):

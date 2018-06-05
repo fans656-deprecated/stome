@@ -179,6 +179,7 @@ class EditStorageQiniu extends EditStorage {
   fields = [
     {name: 'Name', key: 'name'},
     {name: 'Domain', key: 'domain'},
+    {name: 'Bucket', key: 'bucket'},
     {name: 'Access Key', key: 'access-key'},
     {name: 'Secret Key', key: 'secret-key'},
   ]

@@ -16,7 +16,7 @@ export default class Item extends React.Component {
     if (node.isCurrentItem()) {
       classes.push('active');
     }
-    if (node.transfer) {
+    if (node.transfer || node.meta.status === 'init') {
       classes.push('transfer');
     }
 
@@ -93,7 +93,7 @@ class TransferThumbInfo extends React.Component {
           </div>
         </div>
       );
-    } else {
+    } else if (transfer.status === 'uploading') {
       const percent = node.transfer.progress.toFixed(2);
       return (
         <div className="transfer-thumb-info">

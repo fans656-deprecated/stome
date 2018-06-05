@@ -18,9 +18,8 @@ def initialize():
 
 def erase_everything():
     db.getdb().node.remove()
-    db.getdb().content.remove()
     db.getdb().storage.remove()
-    db.getdb().instance.remove()
+    db.getdb().content.remove()
 
 
 def create_root_dir():

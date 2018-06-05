@@ -4,7 +4,11 @@ import $ from 'jquery'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
+import { registerServiceWorker } from './serviceworker'
+
 import './css/style.css'
+
+registerServiceWorker();
 
 function newHandlerId(eventname) {
   return eventname + '-' + Date.now() + '-' + Math.random();
@@ -32,7 +36,7 @@ window.off = (id) => {
       const eventname = id.split('-')[0];
       delete window.handlers[eventname][id];
     } catch (e) {
-      ; // do nothing
+      // do nothing
     }
   }
 }

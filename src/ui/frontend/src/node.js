@@ -1,9 +1,8 @@
-import _ from 'lodash';
+import api from './api'
 
 import {
-  headRes, fetchDir, fetchMeta, fetchTransfer, fetchJSON
+  fetchDir, fetchMeta
 } from './util';
-import watch from './watch'
 
 /**
  * Make a tree rooted at given path, e.g.
@@ -106,13 +105,22 @@ export class Node {
    * Delete this node (and its children if this is a dir)
    */
   delete = async () => {
+    this.hidden = true;
+    this.tree.ui.update();
     if (this.listable) {
       for (let child of this.children) {
         await child.delete();
       }
     }
-    await fetchJSON('DELETE', this.meta.path);
+    await api.delete_(this.meta.path);
     await this.updateParent();
+  }
+
+  detachChild = (child) => {
+    this.children = this._childrenWithoutChild(this.children, child);
+    this.dirs = this._childrenWithoutChild(this.dirs, child);
+    this.files = this._childrenWithoutChild(this.files, child);
+    this.tree.ui.update();
   }
 
   /**
@@ -133,37 +141,29 @@ export class Node {
   onHashProgress = (offset, size) => {
     const percent = offset / size * 100;
     this.transfer.hashProgress = percent;
-    const done = offset === size;
-    if (done) {
-      //console.log(this);
-      //watch(this._watchUntilNodeCreatedOnRemote);
-    }
     this.tree.ui.update();
   }
 
-  _watchUntilNodeCreatedOnRemote = async () => {
-    const meta = this.meta;
-    const res = await headRes(meta.path);
-    if (res.status === 200) {
-      this.transfer.status = 'uploading';
-      this.transfer.progress = 0;
-      await this.update();
-      watch(this._watchUntilNodeUploaded);
-      return true;
-    }
+  startUpload = () => {
+    this.transfer = {
+      status: 'uploading',
+      progress: 0,
+    };
+    this.tree.ui.update();
   }
 
-  _watchUntilNodeUploaded = async () => {
-    const meta = await fetchTransfer(this.meta.path);
-    const unreceived = _.sum(meta.unreceived.map(([b, e]) => e - b));
-    const total = meta.size;
-    if (unreceived === 0) {
-      delete this.transfer;
-      await this.update();
-      return true;
-    }
-    this.transfer.progress = (total - unreceived) / total * 100;
-    await this.update();
+  onUploadProgress = (offset, size) => {
+    const percent = offset / size * 100;
+    this.transfer.progress = percent;
+    this.tree.ui.update();
+  }
+
+  finishUpload = async () => {
+    delete this.transfer;
+    await api.put(this.meta.path + '?meta', null, {
+      'status': 'done',
+    });
+    this.update();
   }
 
   _findByPathNames = async (names, callback) => {

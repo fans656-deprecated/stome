@@ -8,11 +8,3 @@ from tests.prepare import *
 
 
 init()
-
-r = requests.post(origin + '/foo?op=mkdir')
-print r
-print r.text
-
-#from filesystem.fsutil import *
-#node = get_node(root_user, '/public')
-#node.create_as_dir()

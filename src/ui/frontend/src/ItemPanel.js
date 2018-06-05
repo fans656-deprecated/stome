@@ -3,6 +3,8 @@ import React from 'react';
 import ItemDetail from './ItemDetail';
 import ItemActions from './ItemActions';
 
+import './css/ItemPanel.css'
+
 export default class ItemPanel extends React.Component {
   render() {
     const node = this.props.node;

@@ -1,6 +1,6 @@
 import React from 'react'
-import $ from 'jquery'
 import { withRouter } from 'react-router-dom'
+import $ from 'jquery'
 
 import Console from './Console'
 import UserPanel from './UserPanel'
@@ -9,14 +9,11 @@ import Content from './Content'
 import ItemPanel from './ItemPanel'
 import StatusBar from './StatusBar'
 
-import vpsUpload from './uploader/vps'
 import qiniuUpload from './uploader/qiniu'
-
-import conf from './conf'
 import api from './api'
-
 import { getTree, Node } from './node'
-import { joinPaths, splitBaseName, calcMD5 } from './util'
+import { joinPaths, splitBaseName, calcMD5, openTab } from './util'
+import { sendMessage } from './serviceworker'
 
 import './css/Explorer.css'
 
@@ -136,17 +133,21 @@ class Explorer extends React.Component {
     this.props.history.push(node.meta.path);
   }
 
-  openFile = (node) => {
-    if (node.transfer) return;
-    const url = conf.api_origin + node.meta.path;
-    const a = $('<a>');
-    a.attr('href', url);
-    a.attr('target', '_blank');
-    a.attr('rel', 'noopener noreferer');
-    a.attr('style', 'display: none');
-    $('body').append(a);
-    a[0].click();
-    a.remove();
+  openFile = async (node) => {
+    if (node.meta.status !== 'done') return;
+
+    await sendMessage({
+      op: 'add-download-config',
+      meta: node.meta,
+      origin: window.location.origin,
+    });
+
+    //const img = $(`<img src="${node.meta.path}">`);
+    //$('body').append(img);
+
+    //fetch(node.meta.path);
+
+    openTab(node.meta.path);
   }
 
   openFileSelection = (path) => {
@@ -180,8 +181,9 @@ class Explorer extends React.Component {
     const dir = await this.state.tree.findByPath(dirpath);
     let node = dir.findChildByName(name);
     if (node) {
-      this.setCurrentItem(node);
-      return;
+      //this.setCurrentItem(node);
+      //return;
+      await node.delete();
     }
 
     node = makeTransferNode(dir, path, name);
@@ -197,24 +199,20 @@ class Explorer extends React.Component {
     await dir.update();
     node = await dir.findChildByName(name);
     await node.updateParent();
-    console.log(node);
 
-    //let upload = null;
-    //if (true) {  // upload to qiniu
-    //  upload = qiniuUpload;
-    //} else {  // upload to server
-    //  upload = vpsUpload;
-    //}
+    const config = {
+      path: path,
+      dirpath: dirpath,
+      name: name,
+      md5: md5,
+      file: file,
+      node: node,
+    };
 
-    //upload({
-    //  path: path,
-    //  dirpath: dirpath,
-    //  name: name,
-    //  md5: md5,
-    //  file: file,
-    //  node: node,
-    //});
-    //this.update();
+    const contents = node.meta.contents;
+    if (contents.some(c => c.type === 'qiniu')) {
+      qiniuUpload(config);
+    }
   }
 
   update = () => {

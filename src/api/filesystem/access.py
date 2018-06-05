@@ -211,6 +211,7 @@ class AccessControlledNode(object):
         self.node.chgrp(groupname)
 
     def _delete(self):
+        print 'AccessControlledNode._delete', self, self.node
         self.node.delete()
 
     def _create_as_dir(self):
@@ -229,9 +230,12 @@ class AccessControlledNode(object):
             'size': size,
             'md5': md5,
             'mimetype': mimetype,
-            'storage_ids': self.parent.node.storage_ids,
+            'status': 'init',
+            'storage_ids': [],
         })
         self.node = make_node_by_meta(meta)
+        for storage_id in self.parent.node.storage_ids:
+            self.node.add_content(storage_id)
         return self
 
     def _prepare_node_creation(self):

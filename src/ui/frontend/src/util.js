@@ -1,5 +1,6 @@
 import qs from 'query-string'
 import md5 from 'js-md5'
+import $ from 'jquery'
 
 import conf from './conf'
 import {MB} from './constant'
@@ -147,4 +148,15 @@ export function newName(existedNames) {
       }
     }
   }
+}
+
+export function openTab(path) {
+  const a = $('<a>');
+  a.attr('href', path);
+  a.attr('target', '_blank');
+  a.attr('rel', 'noopener noreferer');
+  a.attr('style', 'display: none');
+  $('body').append(a);
+  a[0].click();
+  a.remove();
 }

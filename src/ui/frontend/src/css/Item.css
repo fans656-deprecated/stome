@@ -4,7 +4,7 @@
   align-items: center;
   padding: .6em;
   margin: .2em;
-  max-width: 6em;
+  width: 6em;
   border-radius: 5px;
   position: relative;
 }

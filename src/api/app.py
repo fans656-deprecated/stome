@@ -106,14 +106,9 @@ def get_path(path=''):
 
         GET /?storage-templates
 
-    + Get storage instances
+    + Get storages
 
         GET /?storages
-
-    + Get storage instance by name
-
-        GET /?storage=vps
-        GET /?storage=qiniu&op=get-upload-token
 
     + Query API page
 
@@ -127,8 +122,6 @@ def get_path(path=''):
     # TODO: access control
     if 'storage-templates' in request.args:
         return {'templates': store.storage.get_templates()}
-    elif 'storage' in request.args:
-        return handle_get_storage(request)
     elif 'storages' in request.args:
         return {'storages': store.storage.get_storages()}
 
@@ -159,7 +152,7 @@ def put_path(path='/'):
             "root": "~/.stome-files"
         }
 
-    + Update file/directory metadata
+    + Update file/directory meta
 
         PUT /img/girl.jpg?meta
         {
@@ -169,30 +162,30 @@ def put_path(path='/'):
             "mimetype": "image/jpeg"
         }
 
-    + Upload file
+    + Update content meta
 
-        PUT /img/girl.jpg
-        <file-content>
-
-        Parameters:
-
-            md5: (required) full md5
-            size: (required) total file size
-            chunk-md5: (optional) chunk md5
-            chunk-offset: (optional) chunk byte offset in file
+        PUT /?content
+        {
+            "md5": "2b61c6d1ac994fc5ae83187928131552",
+            "storage_id": "ac994f792813c5ae822b63181551c6d1",
+            "status": "done"
+        }
     """
     visitor = get_visitor()
     if 'storage' in request.args:
         return handle_upsert_storage(visitor)
     elif 'meta' in request.args:
         return handle_update_node_meta(visitor, path)
+    elif 'content' in request.args:
+        return handle_update_content_meta(visitor)
     #else:
     #    return handle_upsert_node(visitor, path)
 
 
+@app.route('/', methods=['POST'])
 @app.route('/<path:path>', methods=['POST'])
 @guarded
-def post_path(path):
+def post_path(path=''):
     """
     + Create directory
 
@@ -200,7 +193,10 @@ def post_path(path):
 
     + Create file
 
-        POST /img/girl.jpg?op=touch&md5=2b61c6d1ac994fc5ae83187928131552&size=32768
+        POST /img/girl.jpg
+            ?op=touch
+            &md5=2b61c6d1ac994fc5ae83187928131552
+            &size=32768
 
     + Rename file/directory
 
@@ -222,10 +218,23 @@ def post_path(path):
         {
             "to": "/public/girl.jpg"
         }
+
+    + Content query
+
+        POST /?op=content-query
+        {
+            "op": "prepare-upload",
+            "md5": "76dd0f1ea2f000b5f1a19c0b5198da84",
+            "storage_id": "07a6211ede979e3b0c391f54d699f2ac"
+        }
     """
     visitor = get_visitor()
-    node = filesystem.get_node(visitor, path)
     op = request.args.get('op')
+
+    if op == 'content-query':
+        return handle_content_query()
+
+    node = filesystem.get_node(visitor, path)
     if op == 'touch':
         size = int(request.args['size'])
         md5 = request.args['md5']
@@ -253,6 +262,7 @@ def delete_path(path):
 
         DELETE /20180402_231528_2039_UTC?storage
     """
+    print 'deleting', path
     visitor = get_visitor()
     if 'storage' in request.args:
         storage = store.storage.get(path)
@@ -260,7 +270,9 @@ def delete_path(path):
             raise NotFound(path)
         storage.delete()
     else:
-        filesystem.get_node(visitor, path).delete()
+        node = filesystem.get_node(visitor, path)
+        print 'got node', node
+        node.delete()
 
 
 @app.route('/', methods=['OPTIONS'])
@@ -279,20 +291,14 @@ def after_request(r):
     return r
 
 
-def handle_get_storage(request):
-    storage_name = request.args.get('storage')
-    if storage_name is None:
-        return 'storage name not specified'
-
-    storage = store.storage.get_by_name(storage_name)
-    if not storage:
-        return 'no storage named {}'.format(storage_name)
-
-    op = request.args.get('op')
-    if op:
-        return storage.query(request)
-    else:
-        return storage
+def handle_content_query():
+    q = request.json
+    md5 = q['md5']
+    storage_id = q['storage_id']
+    content = store.content.get(md5, storage_id)
+    if not content:
+        raise NotFound(content.id)
+    return content.query(q)
 
 
 def handle_upsert_storage(visitor):
@@ -303,10 +309,16 @@ def handle_upsert_storage(visitor):
 
 
 def handle_update_node_meta(visitor, path):
+    # TODO: access control
     node = filesystem.get_node(visitor, path)
     meta = request.json
     node.update_meta(meta)
-    # TODO: update meta
+
+def handle_update_content_meta(visitor):
+    # TODO: access control
+    meta = request.json
+    content = store.content.get(meta['md5'], meta['storage_id'])
+    content.update_meta(meta)
 
 
 def handle_upsert_node(visitor, path):
@@ -373,10 +385,14 @@ def get_content_size():
 
 
 if __name__ == '__main__':
-    debug = True
-    if debug:
-        from tests.prepare import init
-        init()
+    print 'Initializing...'
     if not filesystem.initialized():
         filesystem.initialize()
-    app.run(host='0.0.0.0', port=conf.port, threaded=True, debug=debug)
+    print 'Initialized'
+    app.run(
+        host='0.0.0.0',
+        port=conf.port,
+        threaded=True,
+        debug=True,
+        ssl_context='adhoc',
+    )

@@ -25,6 +25,10 @@ if __name__ == '__main__':
 
     db = getdb()
 
+    #for c in db.list_collections():
+    #    print c
+    #exit()
+
     print '=' * 40, 'dir node'
     r = db.node.find({'type': 'dir'})
     for x in r:
@@ -35,12 +39,7 @@ if __name__ == '__main__':
     for x in r:
         print x
 
-    print '=' * 40, 'content'
-    r = db.content.find()
-    for x in r:
-        print x
-
-    print '=' * 40, 'instance'
-    r = db.instance.find()
-    for x in r:
-        print x
+    #print '=' * 40, 'content'
+    #r = db.content.find()
+    #for x in r:
+    #    print x

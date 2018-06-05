@@ -1,6 +1,8 @@
 import React from 'react'
 
 const todo = `\
+Delete qiniu should be done in background (server side)
+
 File thumbnail
   this can be done on server side like GET /girl/img/blue.jpg?thumbnail=64x64
   then on client side, query if imgage/jpeg etc

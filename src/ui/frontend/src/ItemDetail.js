@@ -15,7 +15,7 @@ export default class Detail extends React.Component {
         ['Owner', meta.owner],
         ['Group', meta.group],
         ['Access', accessToString(meta.access)],
-        ['Size', humanSize(meta.size)],
+        ['Size', formatSize(meta.size)],
       ]);
       if (meta.type === 'file') {
       }
@@ -45,6 +45,14 @@ function accessToString(access) {
   a.push(access & 0o004 ? 'r' : '-');
   a.push(access & 0o002 ? 'w' : '-');
   return a.join('');
+}
+
+function formatSize(size) {
+  if (size === 0) {
+    return humanSize(size);
+  } else {
+    return humanSize(size) + ` (${size})`;
+  }
 }
 
 function humanSize(size) {
