@@ -211,7 +211,6 @@ class AccessControlledNode(object):
         self.node.chgrp(groupname)
 
     def _delete(self):
-        print 'AccessControlledNode._delete', self, self.node
         self.node.delete()
 
     def _create_as_dir(self):

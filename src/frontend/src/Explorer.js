@@ -10,6 +10,7 @@ import ItemPanel from './ItemPanel'
 import StatusBar from './StatusBar'
 
 import qiniuUpload from './uploader/qiniu'
+import conf from './conf'
 import api from './api'
 import { getTree, Node } from './node'
 import { joinPaths, splitBaseName, calcMD5, openTab } from './util'
@@ -139,7 +140,7 @@ class Explorer extends React.Component {
     await sendMessage({
       op: 'add-download-config',
       meta: node.meta,
-      origin: window.location.origin,
+      origin: conf.origin,
     });
 
     //const img = $(`<img src="${node.meta.path}">`);

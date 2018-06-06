@@ -1,4 +1,4 @@
-import qs from 'query-string'
+import qs from 'qs'
 import md5 from 'js-md5'
 import $ from 'jquery'
 
@@ -152,7 +152,7 @@ export function newName(existedNames) {
 
 export function openTab(path) {
   const a = $('<a>');
-  a.attr('href', path);
+  a.attr('href', conf.origin + path);
   a.attr('target', '_blank');
   a.attr('rel', 'noopener noreferer');
   a.attr('style', 'display: none');

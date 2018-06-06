@@ -1,0 +1,31 @@
+{
+  "name": "stome",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "react-scripts": "^1.1.4"
+  },
+  "dependencies": {
+    "file-loader": "^1.1.11",
+    "jquery": "^3.3.1",
+    "js-md5": "^0.7.3",
+    "jwt-decode": "^2.2.0",
+    "qiniu-js": "^2.2.2",
+    "qs": "^6.5.2",
+    "react": "^16.4.0",
+    "react-dom": "^16.4.0",
+    "react-icons": "^2.2.7",
+    "react-router": "^4.2.0",
+    "react-router-dom": "^4.2.2"
+  }
+}

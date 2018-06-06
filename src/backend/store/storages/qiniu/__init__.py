@@ -53,9 +53,7 @@ class QiniuContent(store.content.Content):
         ops = qiniu.build_batch_delete(
             self.bucket_name, [c['path'] for c in chunks]
         )
-        print 'QiniuContent.delete_content'
         self.bucket_manager.batch(ops)
-        print 'QiniuContent.delete_content done'
 
     def prepare_upload(self, args):
         size = args['size']

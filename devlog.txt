@@ -101,3 +101,51 @@ http://dns.xsazz.com/
 总算把很核心的一个东西给弄好了：七牛云上传与下载
 期间各种蛋疼——HTTPS、绑定备案域名、文件混淆、client下载、service worker
 anyway, 总是解决了，，以后是不是真的可用再说吧，测试域名+存2T东西其实挺贵的每个月
+
+2018-06-05 19:19:07
+打开new tab时如果用不同的origin那么service worker就截不下请求
+所以看样子需要只用一个后端，，用service worker截到的fetch请求这个样子：
+
+    https://ub:3000/static/js/bundle.js
+    https://ub:6001/?depth=1
+    https://ub:6001/home?depth=1
+    https://ub:3000/static/media/file.54eb6ec9.png
+
+访问分为三种：
+1. get ui
+
+    GET https://res.eno.zone/
+    GET https://res.eno.zone/home
+
+2. get file
+
+    GET https://res.eno.zone/home/fans656/img/girl.jpg
+
+3. api
+
+    GET https://res.eno.zone/?op=ls
+    GET https://res.eno.zone/?op=meta
+    GET https://res.eno.zone/home/fans656/img/girl.jpg?op=meta
+
+    PUT https://res.eno.zone/home
+    POST https://res.eno.zone/home
+    DELETE https://res.eno.zone/home
+    (non-get requests defaults to api)
+
+4. static resource
+
+    GET https://res.eno.zone/static/js/bundle.js
+
+总结一下
+
+    if method == GET:
+        if path.startswith('static/'):
+            return <static-resource>
+        elif has_query(url):
+            return <api>
+        elif is_dir(path):
+            return <ui>
+        else:
+            return <file-content>
+    else:
+        return <api>

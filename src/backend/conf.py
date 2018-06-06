@@ -5,6 +5,8 @@ auth_pubkey_fpath = os.path.join(os.path.expanduser('~'), '.ssh/id_rsa.pub')
 auth_pubkey = open(auth_pubkey_fpath).read().strip()
 port = 6001
 
+frontend_path = '../frontend/build'
+
 _script_root = os.path.dirname(os.path.realpath(__file__))
 _project_root = os.path.dirname(os.path.dirname(_script_root))
 

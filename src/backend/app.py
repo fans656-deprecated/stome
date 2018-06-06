@@ -1,11 +1,12 @@
 import os
 import time
 import json
+import logging
 import functools
 import traceback
 
 import jwt
-from flask import request, Response, Flask
+from flask import request, Response, Flask, send_from_directory
 
 import conf
 import util
@@ -15,7 +16,12 @@ from user import User
 from error import Error, NotFound, Conflict
 
 
-app = Flask(__name__, template_folder='.')
+#logging.basicConfig()
+#logger = logging.getLogger(__name__)
+#logger.setLevel(logging.DEBUG)
+
+
+app = Flask(__name__, template_folder='.', static_folder=conf.frontend_path)
 
 
 def guarded(viewfunc):
@@ -114,28 +120,13 @@ def get_path(path=''):
 
         GET /?api
     """
-    if 'api' in request.args:
-        return render_template('api.html')
-
     visitor = get_visitor()
-
-    # TODO: access control
-    if 'storage-templates' in request.args:
-        return {'templates': store.storage.get_templates()}
-    elif 'storages' in request.args:
-        return {'storages': store.storage.get_storages()}
-
-    node = filesystem.get_node(visitor, path)
-    if not node:
-        raise NotFound(path)
-
-    if 'meta' in request.args:
-        return node.meta
-    elif node.listable:
-        depth = int(request.args.get('depth', 1))
-        return node.list(depth)
-    elif node.is_file:
-        return node.get_content_stream()
+    if path.startswith('static/') or path == 'sw.js':
+        return handle_static_resource(path)
+    elif request.args:
+        return handle_get_api(visitor, path)
+    else:
+        return handle_get_node(visitor, path)
 
 
 @app.route('/', methods=['PUT'])
@@ -262,7 +253,6 @@ def delete_path(path):
 
         DELETE /20180402_231528_2039_UTC?storage
     """
-    print 'deleting', path
     visitor = get_visitor()
     if 'storage' in request.args:
         storage = store.storage.get(path)
@@ -271,7 +261,6 @@ def delete_path(path):
         storage.delete()
     else:
         node = filesystem.get_node(visitor, path)
-        print 'got node', node
         node.delete()
 
 
@@ -289,6 +278,44 @@ def after_request(r):
     r.headers['Access-Control-Allow-Methods'] = '*'
     r.headers['Access-Control-Allow-Headers'] = '*'
     return r
+
+
+def handle_static_resource(path):
+    return send_from_directory(conf.frontend_path, path)
+
+
+def handle_get_api(visitor, path):
+    if 'api' in request.args:
+        return render_template('api.html')
+
+    # TODO: access control
+    if 'storage-templates' in request.args:
+        return {'templates': store.storage.get_templates()}
+    elif 'storages' in request.args:
+        return {'storages': store.storage.get_storages()}
+
+    node = filesystem.get_node(visitor, path)
+    if not node:
+        raise NotFound(path)
+
+    op = request.args.get('op')
+    if op == 'meta':
+        return node.meta
+    elif op == 'ls':
+        depth = int(request.args.get('depth', 1))
+        return node.list(depth)
+    else:
+        raise NotFound(path)
+
+
+def handle_get_node(visitor, path):
+    node = filesystem.get_node(visitor, path)
+    if not node:
+        raise NotFound(path)
+    if node.listable:
+        return send_from_directory(conf.frontend_path, 'index.html')
+    else:
+        return node.get_content_stream()
 
 
 def handle_content_query():
@@ -385,10 +412,14 @@ def get_content_size():
 
 
 if __name__ == '__main__':
-    print 'Initializing...'
+    if os.system('systemctl is-active --quiet mongod'):
+        #logger.info('try start database(mongodb)')
+        os.system('sudo service mongod start')
     if not filesystem.initialized():
         filesystem.initialize()
-    print 'Initialized'
+    #logger.info('start server')
+    #for _ in xrange(5):
+    #    logger.info('=' * 50)
     app.run(
         host='0.0.0.0',
         port=conf.port,

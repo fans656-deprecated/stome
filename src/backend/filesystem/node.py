@@ -124,7 +124,6 @@ class Node(object):
         return False
 
     def delete(self):
-        print 'Node.delete', self
         self.parent.size -= self.size
         db.getdb().node.remove({'path': self.path})
 
@@ -182,7 +181,6 @@ class FileNode(Node):
         ]
 
     def delete(self):
-        print 'FileNode.delete', self.contents
         for content in self.contents:
             content.ref_count -= 1
         super(FileNode, self).delete()

@@ -1,9 +1,5 @@
 import api from './api'
 
-import {
-  fetchDir, fetchMeta
-} from './util';
-
 /**
  * Make a tree rooted at given path, e.g.
  *
@@ -13,7 +9,7 @@ import {
  * @param {string} path - The path of tree's root node
  */
 export async function getTree(path, ui) {
-  const root = new Node(await fetchDir(path));
+  const root = new Node(await api.ls(path));
   const tree = new Tree(root, ui);
   return tree;
 }
@@ -78,7 +74,7 @@ export class Node {
    */
   update = async (recursive) => {
     if (this.meta.listable) {
-      this.meta = await fetchDir(this.meta.path);
+      this.meta = await api.ls(this.meta.path);
       if (this.loaded) {
         await this._updateStructure();
       } else {
@@ -88,7 +84,7 @@ export class Node {
         this.children.forEach(c => c.update(recursive));
       }
     } else {
-      this.meta = await fetchMeta(this.meta.path);
+      this.meta = await api.ls(this.meta.path);
     }
     this.tree.ui.update();
   }
@@ -214,7 +210,7 @@ export class Node {
   }
 
   _makeDirNode = async (meta) => {
-    return new Node(await fetchDir(meta.path), this, this.tree)
+    return new Node(await api.ls(meta.path), this, this.tree)
   }
 
   _makeFileNodes = () => {

@@ -1,9 +1,9 @@
 {
-  "short_name": "fans656's home",
-  "name": "fans656's home",
+  "short_name": "stome",
+  "name": "stome",
   "icons": [
     {
-      "src": "fans656.ico",
+      "src": "stome.ico",
       "sizes": "256x256",
       "type": "image/png"
     }

@@ -66,8 +66,3 @@ class User(object):
 
 
 root_user = User({'username': 'root'})
-
-
-if __name__ == '__main__':
-    u = User({'username': 'guest'})
-    print u.meta

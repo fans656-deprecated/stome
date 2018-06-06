@@ -7,4 +7,6 @@ from tests.prepare import *
 #testsitest_filesystemitest_fsutil.run()
 
 
-init()
+#init()
+node = get_node(root_user, '')
+print bool(node)

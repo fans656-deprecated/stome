@@ -1,6 +1,13 @@
 import React from 'react'
 
 const todo = `\
+
+Video player
+
+Encryption method: bit-invert / aes?
+
+Migrate to api.js
+
 Delete qiniu should be done in background (server side)
 
 File thumbnail

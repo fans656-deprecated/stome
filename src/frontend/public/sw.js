@@ -22,39 +22,39 @@ self.addEventListener('message', (ev) => {
 
 self.addEventListener('fetch', async (ev) => {
   const request = ev.request;
-  if (isFileDownload(request)) {
+  if (maybeFileDownload(request)) {
     let url = decodeURI(request.url);
-    console.log('intercept', request);
     ev.respondWith(new Promise(async (resolve) => {
       let res = null;
       if (url in url2config) {
         const {meta, content} = url2config[url];
         res = getResponse(meta, content);
-      } else if (!url.endsWith('___')) {
+      } else {
         const path = getNodePath(url);
         try {
           const meta = await getNodeMeta(path);
           const content = await getQiniuContent(meta);
           res = getResponse(meta, content);
         } catch (e) {
-          if (url.indexOf('?') !== -1) {
-            url += '&___';
-          } else {
-            url += '?___';
-          }
-          res = fetch(url);
+          res = fetch(url, {
+            headers: {'X-Pass-Through-Service-Worker': true}
+          });
         }
       }
       resolve(res);
     }));
-  } else {
-    console.log('ignore', request);
   }
 });
 
-function isFileDownload(request) {
+function maybeFileDownload(request) {
+  if (request.headers.hasOwnProperty('X-Pass-Through-Service-Worker')) {
+    return false;
+  }
   if (request.method !== 'GET') return false;
-  if (request.url.indexOf('?') !== -1) return false;
+  const url = request.url;
+  if (url.indexOf('?') !== -1) return false;
+  const path = getNodePath(url);
+  if (path.startsWith('/static/')) return false;
   return true;
 }
 
@@ -89,7 +89,7 @@ function getNodePath(url) {
 }
 
 async function getNodeMeta(path) {
-  const res = await fetch(api_origin + path + '?meta');
+  const res = await fetch(api_origin + path + '?op=meta');
   return await res.json();
 }
 
