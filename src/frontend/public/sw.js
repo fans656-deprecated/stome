@@ -32,9 +32,7 @@ self.addEventListener('fetch', async (ev) => {
       } else {
         const path = getNodePath(url);
         try {
-          const meta = await getNodeMeta(path);
-          const content = await getQiniuContent(meta);
-          res = getResponse(meta, content);
+          res = await getResponseByPath(path);
         } catch (e) {
           res = fetch(url, {
             headers: {'X-Pass-Through-Service-Worker': true}
@@ -70,6 +68,12 @@ function getClientDownloadConfig(meta, origin) {
   }
 }
 
+async function getResponseByPath(path) {
+  const meta = await getNodeMeta(path);
+  const content = await getQiniuContent(meta);
+  return getResponse(meta, content);
+}
+
 function getResponse(meta, content) {
   return new Response(getStream(content), {
     headers: {
@@ -77,11 +81,6 @@ function getResponse(meta, content) {
       'Content-Length': meta.size,
     }
   });
-}
-
-function tryGetResponse(url) {
-  return new Response(
-  );
 }
 
 function getNodePath(url) {
