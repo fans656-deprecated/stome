@@ -2,6 +2,11 @@ import React from 'react'
 
 const todo = `\
 
+Sized image
+
+  GET /img/girl.jpg?width=64
+  GET /img/girl.jpg?height=64-128
+
 Video player
 
 Encryption method: bit-invert / aes?
